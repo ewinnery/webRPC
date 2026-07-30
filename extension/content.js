@@ -168,10 +168,14 @@ function getFavicon() {
     'link[rel*="icon"]',
     'link[rel*="apple-touch-icon"]',
     'link[rel*="shortcut"]',
-    'meta[property="og:image"]',
-    'meta[name="twitter:image"]',
+    'link[href*="favicon"]',
+    'link[href*="Icon"]',
+    'link[href*="icon"]',
+    'meta[property*="image"]',
+    'meta[name*="image"]',
     'meta[itemprop="image"]',
     'header img[src*="logo"]',
+    'header img[src*="icon"]',
     'nav img[src*="logo"]',
     '[class*="logo"] img',
     '[id*="logo"] img'
@@ -179,8 +183,11 @@ function getFavicon() {
 
   for (const sel of selectors) {
     for (const el of document.querySelectorAll(sel)) {
-      const raw = el.getAttribute('href') || el.getAttribute('content') || el.getAttribute('src') || el.href || el.src;
+      let raw = el.getAttribute('href') || el.getAttribute('content') || el.getAttribute('src') || el.href || el.src;
       if (raw && !raw.startsWith('data:')) {
+        if (raw.startsWith('//')) {
+          raw = window.location.protocol + raw;
+        }
         try {
           const absUrl = new URL(raw, baseUrl).href;
           if (absUrl.startsWith('http://') || absUrl.startsWith('https://')) {
