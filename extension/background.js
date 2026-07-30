@@ -149,18 +149,18 @@ function isLocal(d) {
     || /^\d+\.\d+\.\d+\.\d+$/.test(d);
 }
 
-function getGoogleFavicon(domain) {
+function getSiteFavicon(domain) {
   if (!domain || isLocal(domain)) return 'webrpc';
   const clean = domain.replace(/^www\./, '');
-  return `https://www.google.com/s2/favicons?domain=${clean}&sz=128`;
+  return `https://logo.clearbit.com/${clean}`;
 }
 
 function sanitizeImage(url, domain) {
   if (url && !url.includes('/') && !url.startsWith('http')) return url;
-  if (!url || url.startsWith('data:')) return getGoogleFavicon(domain);
+  if (!url || url.startsWith('data:')) return getSiteFavicon(domain);
   const l = url.toLowerCase();
-  if (l.includes('.svg') || l.includes('.ico') || l.includes('.bmp') || l.includes('clearbit.com')) {
-    return getGoogleFavicon(domain);
+  if (l.includes('.svg') || l.includes('.ico') || l.includes('.bmp')) {
+    return getSiteFavicon(domain);
   }
   return url;
 }
@@ -170,7 +170,7 @@ function processActivity(activity) {
   try { domain = new URL(activity.url).hostname; } catch {}
 
   let largeImage = sanitizeImage(activity.largeImage, domain);
-  if (!largeImage) largeImage = getGoogleFavicon(domain);
+  if (!largeImage) largeImage = getSiteFavicon(domain);
 
   const out = {
     type: activity.type || 'page',

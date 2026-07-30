@@ -79,6 +79,9 @@ void DiscordManager::setActivity(const ActivityData& activity) {
     }
     
     std::string largeKey = activity.largeImage;
+    if (largeKey.find('?') != std::string::npos) {
+        largeKey = largeKey.substr(0, largeKey.find('?'));
+    }
     if (largeKey.empty() || largeKey.find("data:") == 0) {
         largeKey = "webrpc";
     }
