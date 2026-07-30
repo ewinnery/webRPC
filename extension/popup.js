@@ -143,7 +143,7 @@ function manualConnect() {
 
 function setupEvents() {
   document.getElementById('downloadBtn').addEventListener('click', () => {
-    chrome.tabs.create({ url: 'https://github.com/yourusername/webrpc/releases' });
+    chrome.tabs.create({ url: 'https://github.com/ewinnery/webRPC/releases' });
   });
   document.getElementById('downloadStatus').addEventListener('click', manualConnect);
   document.getElementById('refreshBtn').addEventListener('click', () => {
