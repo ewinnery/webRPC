@@ -165,8 +165,12 @@ function getFavicon() {
   const baseUrl = window.location.href;
 
   const selectors = [
+    'link[rel="apple-touch-icon"]',
+    'link[rel="apple-touch-icon-precomposed"]',
+    'link[rel="icon"][type="image/png"]',
+    'link[rel="icon"][type="image/webp"]',
+    'link[rel="icon"][sizes]',
     'link[rel*="icon"]',
-    'link[rel*="apple-touch-icon"]',
     'link[rel*="shortcut"]',
     'link[href*="favicon"]',
     'link[href*="Icon"]',
@@ -181,6 +185,8 @@ function getFavicon() {
     '[id*="logo"] img'
   ];
 
+  let fallbackCandidate = null;
+
   for (const sel of selectors) {
     for (const el of document.querySelectorAll(sel)) {
       let raw = el.getAttribute('href') || el.getAttribute('content') || el.getAttribute('src') || el.href || el.src;
@@ -191,13 +197,21 @@ function getFavicon() {
         try {
           const absUrl = new URL(raw, baseUrl).href;
           if (absUrl.startsWith('http://') || absUrl.startsWith('https://')) {
-            return absUrl;
+            const l = absUrl.toLowerCase();
+            const isRaster = l.includes('.png') || l.includes('.jpg') || l.includes('.jpeg') || l.includes('.webp') || l.includes('.gif') || el.getAttribute('type') === 'image/png';
+            if (isRaster) {
+              return absUrl;
+            }
+            if (!fallbackCandidate && !l.includes('.svg')) {
+              fallbackCandidate = absUrl;
+            }
           }
         } catch {}
       }
     }
   }
 
+  if (fallbackCandidate) return fallbackCandidate;
   return getIcon(domain);
 }
 
