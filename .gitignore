@@ -2,6 +2,13 @@
 *.pem
 *.key
 
+# Executables & Binaries (Release assets belong in GitHub Releases)
+*.exe
+*.dll
+*.so
+*.dylib
+*.crx
+
 # Build & Output Artifacts
 build/
 client/build/
