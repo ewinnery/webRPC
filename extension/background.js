@@ -149,10 +149,21 @@ function isLocal(d) {
     || /^\d+\.\d+\.\d+\.\d+$/.test(d);
 }
 
+const DOMAIN_MAP = {
+  'chatgpt.com': 'openai.com',
+  'chat.openai.com': 'openai.com',
+  'x.com': 'twitter.com',
+  'music.youtube.com': 'youtube.com',
+  'docs.google.com': 'google.com',
+  'drive.google.com': 'google.com',
+  'mail.google.com': 'google.com',
+};
+
 function getSiteFavicon(domain) {
   if (!domain || isLocal(domain)) return 'webrpc';
   const clean = domain.replace(/^www\./, '');
-  return `https://logo.clearbit.com/${clean}`;
+  const mapped = DOMAIN_MAP[clean] || clean;
+  return `https://logo.clearbit.com/${mapped}`;
 }
 
 function sanitizeImage(url, domain) {

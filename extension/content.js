@@ -165,10 +165,12 @@ function getFavicon() {
   const baseUrl = window.location.href;
 
   const selectors = [
+    'meta[property="og:image"]',
+    'meta[name="twitter:image"]',
     'link[rel="apple-touch-icon"]',
     'link[rel="apple-touch-icon-precomposed"]',
     'link[rel="icon"][type="image/png"]',
-    'link[rel="icon"][type="image/webp"]',
+    'link[rel="icon"][type="image/jpeg"]',
     'link[rel="icon"][sizes]',
     'link[rel*="icon"]',
     'link[rel*="shortcut"]',
@@ -185,7 +187,7 @@ function getFavicon() {
     '[id*="logo"] img'
   ];
 
-  let fallbackCandidate = null;
+  let webpCandidate = null;
 
   for (const sel of selectors) {
     for (const el of document.querySelectorAll(sel)) {
@@ -198,12 +200,11 @@ function getFavicon() {
           const absUrl = new URL(raw, baseUrl).href;
           if (absUrl.startsWith('http://') || absUrl.startsWith('https://')) {
             const l = absUrl.toLowerCase();
-            const isRaster = l.includes('.png') || l.includes('.jpg') || l.includes('.jpeg') || l.includes('.webp') || l.includes('.gif') || el.getAttribute('type') === 'image/png';
-            if (isRaster) {
+            if (l.includes('.png') || l.includes('.jpg') || l.includes('.jpeg')) {
               return absUrl;
             }
-            if (!fallbackCandidate && !l.includes('.svg')) {
-              fallbackCandidate = absUrl;
+            if (l.includes('.webp') && !webpCandidate) {
+              webpCandidate = absUrl;
             }
           }
         } catch {}
@@ -211,7 +212,7 @@ function getFavicon() {
     }
   }
 
-  if (fallbackCandidate) return fallbackCandidate;
+  if (webpCandidate) return webpCandidate;
   return getIcon(domain);
 }
 
