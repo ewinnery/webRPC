@@ -156,10 +156,11 @@ function getSiteFavicon(domain) {
 }
 
 function sanitizeImage(url, domain) {
-  if (url && !url.includes('/') && !url.startsWith('http')) return url;
   if (!url || url.startsWith('data:')) return getSiteFavicon(domain);
-  const l = url.toLowerCase();
-  if (l.includes('.svg') || l.includes('.ico') || l.includes('.bmp')) {
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    if (url.includes('/') && domain) {
+      try { return new URL(url, `https://${domain}`).href; } catch {}
+    }
     return getSiteFavicon(domain);
   }
   return url;
