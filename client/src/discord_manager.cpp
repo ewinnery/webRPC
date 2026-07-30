@@ -79,7 +79,7 @@ void DiscordManager::setActivity(const ActivityData& activity) {
     }
     
     std::string largeKey = activity.largeImage;
-    if (largeKey.empty() || largeKey.find("data:") == 0 || largeKey.find("http://") == 0 || largeKey.find("https://") == 0) {
+    if (largeKey.empty() || largeKey.find("data:") == 0) {
         largeKey = "webrpc";
     }
     presence.setLargeImageKey(largeKey);
