@@ -66,6 +66,7 @@ void DiscordManager::setActivity(const ActivityData& activity) {
     Log::debug("Discord setActivity: details=" + activity.details + " state=" + activity.state);
     
     auto& presence = discord::RPCManager::get().getPresence();
+    presence.clear();
     
     presence.setDetails(activity.details);
     presence.setState(activity.state);
@@ -74,30 +75,15 @@ void DiscordManager::setActivity(const ActivityData& activity) {
         presence.setStartTimestamp(activity.startTimestamp);
         if (activity.endTimestamp > 0) {
             presence.setEndTimestamp(activity.endTimestamp);
-        } else {
-            presence.setEndTimestamp(0);
         }
-    } else {
-        presence.setStartTimestamp(0);
-        presence.setEndTimestamp(0);
     }
     
-    if (!activity.largeImage.empty() && activity.largeImage.find("data:") != 0) {
-        std::string imgLower = activity.largeImage;
-        std::transform(imgLower.begin(), imgLower.end(), imgLower.begin(), ::tolower);
-        
-        bool unsupported = (imgLower.find(".ico") != std::string::npos) ||
-                           (imgLower.find(".svg") != std::string::npos);
-        if (!unsupported) {
-            presence.setLargeImageKey(activity.largeImage);
-        } else {
-            presence.setLargeImageKey("webrpc");
-        }
-        presence.setLargeImageText(activity.largeText);
-    } else {
-        presence.setLargeImageKey("webrpc");
-        presence.setLargeImageText(activity.largeText);
+    std::string largeKey = activity.largeImage;
+    if (largeKey.empty() || largeKey.find("data:") == 0 || largeKey.find("http://") == 0 || largeKey.find("https://") == 0) {
+        largeKey = "webrpc";
     }
+    presence.setLargeImageKey(largeKey);
+    presence.setLargeImageText(activity.largeText.empty() ? "WebRPC" : activity.largeText);
     
     std::string smallAssetKey;
     if (activity.type == "page" || activity.type == "coding") {
@@ -106,24 +92,23 @@ void DiscordManager::setActivity(const ActivityData& activity) {
         smallAssetKey = "icon_video";
     } else if (activity.type == "music") {
         smallAssetKey = "icon_sound";
-    } else if (activity.type == "chat") {
-        smallAssetKey = "webrpc";
     } else {
         smallAssetKey = "webrpc"; 
     }
     
     presence.setSmallImageKey(smallAssetKey);
-    presence.setSmallImageText(activity.smallText);
+    presence.setSmallImageText(activity.smallText.empty() ? "Browsing" : activity.smallText);
     
-    if (!activity.button1Label.empty() && !activity.button1Url.empty()) {
-        presence.setButton1(activity.button1Label, activity.button1Url);
+    if (!activity.button1Label.empty() && !activity.button1Url.empty() && activity.button1Url.find("http") == 0) {
+        presence.setButton1(activity.button1Label, activity.button1Url, true);
     } else {
-        presence.setButton1("", "");
+        presence.getButton1().setEnabled(false);
     }
-    if (!activity.button2Label.empty() && !activity.button2Url.empty()) {
-        presence.setButton2(activity.button2Label, activity.button2Url);
+    
+    if (!activity.button2Label.empty() && !activity.button2Url.empty() && activity.button2Url.find("http") == 0) {
+        presence.setButton2(activity.button2Label, activity.button2Url, true);
     } else {
-        presence.setButton2("", "");
+        presence.getButton2().setEnabled(false);
     }
     
     if (activity.type == "video") {
@@ -135,7 +120,7 @@ void DiscordManager::setActivity(const ActivityData& activity) {
     }
     
     discord::RPCManager::get().refresh();
-    Log::debug("Discord presence refreshed");
+    Log::debug("Discord presence refreshed successfully!");
 #endif
 }
 
