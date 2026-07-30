@@ -1,0 +1,12 @@
+# Credentials & Keys
+*.pem
+*.key
+
+# Build & Output Artifacts
+build/
+client/build/
+client/discord-presence/build/
+bin/
+obj/
+.vs/
+.vscode/
