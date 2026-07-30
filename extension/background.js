@@ -149,21 +149,27 @@ function isLocal(d) {
     || /^\d+\.\d+\.\d+\.\d+$/.test(d);
 }
 
-const DOMAIN_MAP = {
-  'chatgpt.com': 'openai.com',
-  'chat.openai.com': 'openai.com',
-  'x.com': 'twitter.com',
-  'music.youtube.com': 'youtube.com',
-  'docs.google.com': 'google.com',
-  'drive.google.com': 'google.com',
-  'mail.google.com': 'google.com',
+const KNOWN_SITE_LOGOS = {
+  'google.com': 'https://www.google.com/images/branding/googleg/1x/googleg_standard_color_128dp.png',
+  'chatgpt.com': 'https://cdn.openai.com/chatgpt/share-og.png',
+  'chat.openai.com': 'https://cdn.openai.com/chatgpt/share-og.png',
+  'x.com': 'https://logo.clearbit.com/twitter.com',
+  'twitter.com': 'https://logo.clearbit.com/twitter.com',
+  'github.com': 'https://logo.clearbit.com/github.com',
+  'youtube.com': 'https://logo.clearbit.com/youtube.com',
+  'twitch.tv': 'https://logo.clearbit.com/twitch.tv',
 };
 
 function getSiteFavicon(domain) {
   if (!domain || isLocal(domain)) return 'webrpc';
   const clean = domain.replace(/^www\./, '');
-  const mapped = DOMAIN_MAP[clean] || clean;
-  return `https://logo.clearbit.com/${mapped}`;
+  if (KNOWN_SITE_LOGOS[clean]) return KNOWN_SITE_LOGOS[clean];
+  const parts = clean.split('.');
+  if (parts.length > 2) {
+    const parent = parts.slice(-2).join('.');
+    if (KNOWN_SITE_LOGOS[parent]) return KNOWN_SITE_LOGOS[parent];
+  }
+  return `https://logo.clearbit.com/${clean}`;
 }
 
 function sanitizeImage(url, domain) {
