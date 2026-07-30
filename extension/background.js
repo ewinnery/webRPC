@@ -149,14 +149,18 @@ function isLocal(d) {
     || /^\d+\.\d+\.\d+\.\d+$/.test(d);
 }
 
+function getGoogleFavicon(domain) {
+  if (!domain || isLocal(domain)) return 'webrpc';
+  const clean = domain.replace(/^www\./, '');
+  return `https://www.google.com/s2/favicons?domain=${clean}&sz=128`;
+}
+
 function sanitizeImage(url, domain) {
-  
   if (url && !url.includes('/') && !url.startsWith('http')) return url;
-  if (!url || url.startsWith('data:')) return null;
+  if (!url || url.startsWith('data:')) return getGoogleFavicon(domain);
   const l = url.toLowerCase();
-  if (l.includes('.svg') || l.includes('.ico') || l.includes('.bmp')) {
-    if (isLocal(domain)) return 'webrpc';
-    return `https://logo.clearbit.com/${(domain || '').replace(/^www\./, '')}`;
+  if (l.includes('.svg') || l.includes('.ico') || l.includes('.bmp') || l.includes('clearbit.com')) {
+    return getGoogleFavicon(domain);
   }
   return url;
 }
@@ -166,7 +170,7 @@ function processActivity(activity) {
   try { domain = new URL(activity.url).hostname; } catch {}
 
   let largeImage = sanitizeImage(activity.largeImage, domain);
-  if (!largeImage) largeImage = isLocal(domain) ? 'webrpc' : `https://logo.clearbit.com/${(domain || '').replace(/^www\./, '')}`;
+  if (!largeImage) largeImage = getGoogleFavicon(domain);
 
   const out = {
     type: activity.type || 'page',
@@ -177,15 +181,15 @@ function processActivity(activity) {
     smallImage: applyIconPrefix(activity.smallImage) || null,
     largeText: settings.showPageTitle ? (activity.largeText || null) : null,
     smallText: activity.smallText || null,
-    startTimestamp: null,
-    endTimestamp: null,
+    startTimestamp: 0,
+    endTimestamp: 0,
     button1Label: null, button1Url: null,
     button2Label: null, button2Url: null,
   };
 
-  if (settings.showVideoDuration && activity.timestamps) {
-    out.startTimestamp = activity.timestamps.start || null;
-    out.endTimestamp = activity.timestamps.end || null;
+  if (settings.showVideoDuration && activity.type !== 'page' && activity.timestamps) {
+    out.startTimestamp = activity.timestamps.start || 0;
+    out.endTimestamp = activity.timestamps.end || 0;
   }
 
   if (settings.showButtons) {

@@ -74,7 +74,12 @@ void DiscordManager::setActivity(const ActivityData& activity) {
         presence.setStartTimestamp(activity.startTimestamp);
         if (activity.endTimestamp > 0) {
             presence.setEndTimestamp(activity.endTimestamp);
+        } else {
+            presence.setEndTimestamp(0);
         }
+    } else {
+        presence.setStartTimestamp(0);
+        presence.setEndTimestamp(0);
     }
     
     if (!activity.largeImage.empty() && activity.largeImage.find("data:") != 0) {
@@ -85,10 +90,13 @@ void DiscordManager::setActivity(const ActivityData& activity) {
                            (imgLower.find(".svg") != std::string::npos);
         if (!unsupported) {
             presence.setLargeImageKey(activity.largeImage);
-            presence.setLargeImageText(activity.largeText);
         } else {
-            Log::warn("Skipped unsupported image format");
+            presence.setLargeImageKey("webrpc");
         }
+        presence.setLargeImageText(activity.largeText);
+    } else {
+        presence.setLargeImageKey("webrpc");
+        presence.setLargeImageText(activity.largeText);
     }
     
     std::string smallAssetKey;
@@ -109,9 +117,13 @@ void DiscordManager::setActivity(const ActivityData& activity) {
     
     if (!activity.button1Label.empty() && !activity.button1Url.empty()) {
         presence.setButton1(activity.button1Label, activity.button1Url);
+    } else {
+        presence.setButton1("", "");
     }
     if (!activity.button2Label.empty() && !activity.button2Url.empty()) {
         presence.setButton2(activity.button2Label, activity.button2Url);
+    } else {
+        presence.setButton2("", "");
     }
     
     if (activity.type == "video") {

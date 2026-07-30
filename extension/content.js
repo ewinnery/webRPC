@@ -157,14 +157,7 @@ function isLocalDomain(d) {
 function getIcon(domain) {
   const clean = domain.replace(/^www\./, '');
   if (isLocalDomain(clean)) return 'webrpc';
-  if (KNOWN_ICONS[clean]) return KNOWN_ICONS[clean];
-  const parts = clean.split('.');
-  if (parts.length > 2) {
-    const parent = parts.slice(-2).join('.');
-    if (KNOWN_ICONS[parent]) return KNOWN_ICONS[parent];
-  }
-  
-  return `https://logo.clearbit.com/${clean}`;
+  return `https://www.google.com/s2/favicons?domain=${clean}&sz=128`;
 }
 
 function getFavicon() {
@@ -185,20 +178,35 @@ function getFavicon() {
       }
     }
   }
-  
-  if (isLocalDomain(domain)) return 'webrpc';
   return getIcon(domain);
 }
 
+function isAdPlaying() {
+  if (document.querySelector('.ad-showing, .ad-interrupting, .video-ads .ad-preview, .ytp-ad-text, .ytp-ad-preview-text, [class*="ad-showing"]')) {
+    return true;
+  }
+  return false;
+}
+
 function findActiveVideo() {
+  if (isAdPlaying()) return null;
+
   let best = null, bestScore = 0;
   for (const v of document.querySelectorAll('video')) {
     if (v.readyState < 1) continue;
-    const playing = !v.paused && !v.ended && v.currentTime > 0;
-    const hasDuration = !isNaN(v.duration) && v.duration > 1;
-    if (!playing && !hasDuration) continue;
+
+    const isAd = v.closest('[class*="ad-player"], [class*="video-ads"], [class*="preroll"], [id*="ad-"]');
+    if (isAd) continue;
+
     const w = v.videoWidth || v.clientWidth || v.offsetWidth || 0;
     const h = v.videoHeight || v.clientHeight || v.offsetHeight || 0;
+    if (w < 120 || h < 120) continue;
+
+    const playing = !v.paused && !v.ended && v.currentTime > 0;
+    const dur = v.duration;
+    const hasDur = !isNaN(dur) && dur > 3;
+    if (!playing && !hasDur) continue;
+
     let score = w * h;
     if (playing) score += 1000000;
     if (score > bestScore) { best = v; bestScore = score; }
