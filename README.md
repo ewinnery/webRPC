@@ -68,4 +68,4 @@ cmake --build . --config Release
 
 ## Лицензия
 Проект полностью опенсурс.
-[GNU GPP V3.0](LICENSE)
+[GNU GPL-3.0](LICENSE)
