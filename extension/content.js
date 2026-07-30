@@ -162,19 +162,26 @@ function getIcon(domain) {
 
 function getFavicon() {
   const domain = window.location.hostname;
-  const sels = [
-    'link[rel="icon"][type="image/png"]',
+  const selectors = [
     'link[rel="apple-touch-icon"]',
-    'link[rel="icon"][sizes="128x128"]', 'link[rel="icon"][sizes="96x96"]',
-    'link[rel="icon"][sizes="64x64"]', 'link[rel="icon"][sizes="48x48"]',
+    'link[rel="apple-touch-icon-precomposed"]',
+    'link[rel="icon"][type="image/png"]',
+    'link[rel="icon"][type="image/webp"]',
+    'link[rel="icon"][sizes="192x192"]', 'link[rel="icon"][sizes="128x128"]',
+    'link[rel="icon"][sizes="96x96"]', 'link[rel="icon"][sizes="64x64"]',
     'link[rel="icon"][sizes="32x32"]', 'link[rel="icon"]',
-    'link[rel="shortcut icon"]'
+    'link[rel="shortcut icon"]',
+    'meta[property="og:image"]',
+    'meta[name="twitter:image"]'
   ];
-  for (const sel of sels) {
-    for (const link of document.querySelectorAll(sel)) {
-      if (link.href && !link.href.startsWith('data:')) {
-        const l = link.href.toLowerCase();
-        if (!l.includes('.svg') && !l.includes('.ico')) return link.href;
+  for (const sel of selectors) {
+    for (const el of document.querySelectorAll(sel)) {
+      const href = el.href || el.content;
+      if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
+        const l = href.toLowerCase();
+        if (!l.includes('.svg') && !l.includes('.ico') && !l.includes('data:')) {
+          return href;
+        }
       }
     }
   }

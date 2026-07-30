@@ -138,7 +138,7 @@ function handleActivityUpdate(activity, tab) {
       return;
     }
     if (updateTimer) clearTimeout(updateTimer);
-    updateTimer = setTimeout(() => processActivity(activity), 300);
+    updateTimer = setTimeout(() => processActivity(activity, tabs[0]), 300);
   });
 }
 
@@ -165,11 +165,21 @@ function sanitizeImage(url, domain) {
   return url;
 }
 
-function processActivity(activity) {
+function processActivity(activity, tab) {
   let domain = '';
   try { domain = new URL(activity.url).hostname; } catch {}
 
-  let largeImage = sanitizeImage(activity.largeImage, domain);
+  let largeImage = activity.largeImage;
+  if ((!largeImage || largeImage === getSiteFavicon(domain)) && tab?.favIconUrl) {
+    if (tab.favIconUrl.startsWith('http')) {
+      const l = tab.favIconUrl.toLowerCase();
+      if (!l.includes('.svg') && !l.includes('.ico') && !l.includes('data:')) {
+        largeImage = tab.favIconUrl;
+      }
+    }
+  }
+
+  largeImage = sanitizeImage(largeImage, domain);
   if (!largeImage) largeImage = getSiteFavicon(domain);
 
   const out = {
