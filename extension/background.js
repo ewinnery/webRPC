@@ -150,16 +150,20 @@ function isLocal(d) {
 }
 
 function getSiteFavicon(domain) {
-  return 'icon_globe';
+  if (!domain) return 'https://raw.githubusercontent.com/ewinnery/webRPC/main/extension/icons/icon-512.png';
+  const d = domain.toLowerCase();
+  if (d.includes('google.')) return 'https://raw.githubusercontent.com/ewinnery/webRPC/main/docs/google.png';
+  if (d.includes('chatgpt.com') || d.includes('openai.com')) return 'https://cdn.openai.com/chatgpt/share-og.png';
+  return 'https://raw.githubusercontent.com/ewinnery/webRPC/main/extension/icons/icon-512.png';
 }
 
 function sanitizeImage(url, domain) {
-  if (!url || url.startsWith('data:') || url === 'webrpc' || url === 'icon_globe') return 'icon_globe';
+  if (!url || url.startsWith('data:') || url === 'webrpc' || url === 'icon_globe') return getSiteFavicon(domain);
   if (!url.startsWith('http://') && !url.startsWith('https://')) {
-    return 'icon_globe';
+    return getSiteFavicon(domain);
   }
   const l = url.toLowerCase();
-  if (l.includes('.ico') || l.includes('.svg')) return 'icon_globe';
+  if (l.includes('.ico') || l.includes('.svg')) return getSiteFavicon(domain);
   return url;
 }
 

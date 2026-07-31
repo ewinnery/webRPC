@@ -295,6 +295,14 @@ async function bruteForceCommonPaths() {
     .map(r => ({ url: r.url, score: 1, source: "bruteforce" }));
 }
 
+function getKnownIcon(domain) {
+  if (!domain) return null;
+  const d = domain.toLowerCase();
+  if (d.includes('google.')) return 'https://raw.githubusercontent.com/ewinnery/webRPC/main/docs/google.png';
+  if (d.includes('chatgpt.com') || d.includes('openai.com')) return 'https://cdn.openai.com/chatgpt/share-og.png';
+  return null;
+}
+
 let cachedFaviconUrl = null;
 let cachedFaviconHref = null;
 
@@ -304,6 +312,13 @@ async function extractFavicon() {
   }
   cachedFaviconHref = location.href;
   cachedFaviconUrl = null;
+
+  const domain = location.hostname;
+  const known = getKnownIcon(domain);
+  if (known) {
+    cachedFaviconUrl = known;
+    return { url: known, score: 10000, source: "known" };
+  }
 
   await waitForHeadStable(1500, 300);
 
@@ -334,13 +349,21 @@ async function extractFavicon() {
     }
   }
 
-  cachedFaviconUrl = 'webrpc';
-  return { url: 'webrpc', score: 0, source: "last-resort" };
+  cachedFaviconUrl = 'https://raw.githubusercontent.com/ewinnery/webRPC/main/extension/icons/icon-512.png';
+  return { url: cachedFaviconUrl, score: 0, source: "last-resort" };
 }
 
 function getFavicon() {
   if (cachedFaviconUrl && cachedFaviconHref === location.href) return cachedFaviconUrl;
   cachedFaviconHref = location.href;
+
+  const domain = location.hostname;
+  const known = getKnownIcon(domain);
+  if (known) {
+    cachedFaviconUrl = known;
+    return known;
+  }
+
   const links = collectFromLinks();
   for (const link of links) {
     const lUrl = link.url.toLowerCase();
@@ -357,8 +380,8 @@ function getFavicon() {
       return cachedFaviconUrl;
     }
   }
-  cachedFaviconUrl = 'webrpc';
-  return 'webrpc';
+  cachedFaviconUrl = 'https://raw.githubusercontent.com/ewinnery/webRPC/main/extension/icons/icon-512.png';
+  return cachedFaviconUrl;
 }
 
 extractFavicon().then(result => {
