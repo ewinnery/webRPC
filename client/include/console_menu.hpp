@@ -406,7 +406,7 @@ private:
 
         // Line 1: Title
         int r = startRow + 1;
-        for (int x = 0; x < boxW; ++x) setBuf(r, startCol + x, L' ', A_SEL_BG);
+        for (int x = 1; x < boxW - 1; ++x) setBuf(r, startCol + x, L' ', A_SEL_BG);
         setBuf(r, startCol, L'\u2502', A_CYAN);
         setBuf(r, startCol + boxW - 1, L'\u2502', A_CYAN);
         putStr(r, startCol + (boxW - 23) / 2, L"WEBRPC UPDATE AVAILABLE", A_SEL_CYAN);
@@ -415,7 +415,7 @@ private:
         r++;
         std::string sub = "New Version v" + remoteVer_ + " is ready to install";
         std::wstring wsub(sub.begin(), sub.end());
-        for (int x = 0; x < boxW; ++x) setBuf(r, startCol + x, L' ', A_SEL_BG);
+        for (int x = 1; x < boxW - 1; ++x) setBuf(r, startCol + x, L' ', A_SEL_BG);
         setBuf(r, startCol, L'\u2502', A_CYAN);
         setBuf(r, startCol + boxW - 1, L'\u2502', A_CYAN);
         putStr(r, startCol + (boxW - (int)wsub.size()) / 2, wsub.c_str(), A_SEL_LABEL);
@@ -433,16 +433,16 @@ private:
         setBuf(r, startCol + boxW - 1, L'\u2502', A_CYAN);
 
         const wchar_t* updateItems[] = {
-            L"[1] Update Auto   (Auto-download & restart)          ",
-            L"[2] Update Manual (Open GitHub Releases page)        ",
-            L"[3] Remind Later  (Postpone update 24 hours)         "
+            L"[1] Update Auto   (Auto-download & restart)",
+            L"[2] Update Manual (Open GitHub Releases page)",
+            L"[3] Remind Later  (Postpone update 24 hours)"
         };
 
         for (int i = 0; i < 3; ++i) {
             r++;
             bool sel = (i == updateSel_);
-            for (int x = 1; x < boxW - 1; ++x) setBuf(r, startCol + x, L' ', sel ? A_SEL_BG : A_RESET);
             setBuf(r, startCol, L'\u2502', A_CYAN);
+            for (int x = 1; x < boxW - 1; ++x) setBuf(r, startCol + x, L' ', sel ? A_SEL_BG : A_RESET);
             setBuf(r, startCol + boxW - 1, L'\u2502', A_CYAN);
 
             if (sel) putStr(r, startCol + 3, L"\u25B6 ", A_SEL_CYAN);
@@ -486,7 +486,7 @@ private:
 
         // Title
         int r = startRow + 1;
-        for (int x = 0; x < boxW; ++x) setBuf(r, startCol + x, L' ', A_SEL_BG);
+        for (int x = 1; x < boxW - 1; ++x) setBuf(r, startCol + x, L' ', A_SEL_BG);
         setBuf(r, startCol, L'\u2502', A_CYAN);
         setBuf(r, startCol + boxW - 1, L'\u2502', A_CYAN);
         putStr(r, startCol + (boxW - 25) / 2, L"DOWNLOADING WEBRPC UPDATE", A_SEL_CYAN);
@@ -495,7 +495,7 @@ private:
         r++;
         std::string sub = "Downloading Version v" + remoteVer_;
         std::wstring wsub(sub.begin(), sub.end());
-        for (int x = 0; x < boxW; ++x) setBuf(r, startCol + x, L' ', A_SEL_BG);
+        for (int x = 1; x < boxW - 1; ++x) setBuf(r, startCol + x, L' ', A_SEL_BG);
         setBuf(r, startCol, L'\u2502', A_CYAN);
         setBuf(r, startCol + boxW - 1, L'\u2502', A_CYAN);
         putStr(r, startCol + (boxW - (int)wsub.size()) / 2, wsub.c_str(), A_SEL_LABEL);
