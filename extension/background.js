@@ -302,7 +302,7 @@ async function checkExtensionUpdates() {
     const data = await res.json();
     
     const manifestVer = chrome.runtime.getManifest().version;
-    const currentVer = "1.0.0"; // Simulated 1.0.0 for instant update prompt test!
+    const currentVer = manifestVer;
     const remoteVer = data.extension_version || data.version || "1.0.1";
     
     if (remoteVer && isNewerVersion(remoteVer, currentVer)) {
