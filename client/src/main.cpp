@@ -48,15 +48,77 @@ BOOL WINAPI consoleCtrlHandler(DWORD event) {
 #include <wininet.h>
 #pragma comment(lib, "wininet.lib")
 
+bool downloadFile(const std::string& url, const std::string& destPath) {
+    HINTERNET hNet = InternetOpenA("WebRPC-Downloader", INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
+    if (!hNet) return false;
+    HINTERNET hUrl = InternetOpenUrlA(hNet, url.c_str(), NULL, 0, INTERNET_FLAG_RELOAD | INTERNET_FLAG_NO_CACHE_WRITE, 0);
+    if (!hUrl) {
+        InternetCloseHandle(hNet);
+        return false;
+    }
+    FILE* fp = fopen(destPath.c_str(), "wb");
+    if (!fp) {
+        InternetCloseHandle(hUrl);
+        InternetCloseHandle(hNet);
+        return false;
+    }
+    char buffer[4096];
+    DWORD bytesRead = 0;
+    while (InternetReadFile(hUrl, buffer, sizeof(buffer), &bytesRead) && bytesRead > 0) {
+        fwrite(buffer, 1, bytesRead, fp);
+    }
+    fclose(fp);
+    InternetCloseHandle(hUrl);
+    InternetCloseHandle(hNet);
+    return true;
+}
+
+void performAutoUpdate(const std::string& downloadUrl) {
+    char tempPath[MAX_PATH] = {0};
+    GetTempPathA(MAX_PATH, tempPath);
+    std::string newExePath = std::string(tempPath) + "webRPC_new.exe";
+    
+    char currentExePath[MAX_PATH] = {0};
+    GetModuleFileNameA(NULL, currentExePath, MAX_PATH);
+
+    Log::ok("Downloading update from " + downloadUrl + "...");
+    if (downloadFile(downloadUrl, newExePath)) {
+        Log::ok("Download complete! Launching updater and restarting...");
+        std::string cmdArgs = "/c timeout /t 1 /nobreak >nul && copy /y \"" + newExePath + "\" \"" + std::string(currentExePath) + "\" && del \"" + newExePath + "\" && start \"\" \"" + std::string(currentExePath) + "\"";
+        ShellExecuteA(NULL, "runas", "cmd.exe", cmdArgs.c_str(), NULL, SW_HIDE);
+        exit(0);
+    } else {
+        Log::err("Failed to download update file!");
+        ShellExecuteA(NULL, "open", "https://github.com/ewinnery/webRPC/releases/tag/v2", NULL, NULL, SW_SHOWNORMAL);
+    }
+}
+
 void checkForUpdatesAsync() {
     std::thread([]() {
         std::this_thread::sleep_for(std::chrono::seconds(2));
+        
+        char tempPath[MAX_PATH] = {0};
+        GetTempPathA(MAX_PATH, tempPath);
+        std::string postponeFile = std::string(tempPath) + "webrpc_postpone.tmp";
+        FILE* fp = fopen(postponeFile.c_str(), "rb");
+        if (fp) {
+            long long lastPostponed = 0;
+            if (fscanf(fp, "%lld", &lastPostponed) == 1) {
+                long long now = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+                if (now - lastPostponed < 86400) {
+                    fclose(fp);
+                    return;
+                }
+            }
+            fclose(fp);
+        }
+
         HINTERNET hNet = InternetOpenA("WebRPC-UpdateChecker", INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
         if (!hNet) return;
         
         HINTERNET hUrl = InternetOpenUrlA(hNet, "https://raw.githubusercontent.com/ewinnery/webRPC/main/version.json", NULL, 0, INTERNET_FLAG_RELOAD | INTERNET_FLAG_NO_CACHE_WRITE, 0);
         if (hUrl) {
-            char buffer[1024] = {0};
+            char buffer[2048] = {0};
             DWORD bytesRead = 0;
             if (InternetReadFile(hUrl, buffer, sizeof(buffer) - 1, &bytesRead) && bytesRead > 0) {
                 std::string jsonStr(buffer, bytesRead);
@@ -70,9 +132,37 @@ void checkForUpdatesAsync() {
                         if (!remoteVer.empty() && remoteVer != currentVer) {
                             Log::ok("========================================");
                             Log::ok("NEW WEBRPC UPDATE AVAILABLE: " + remoteVer);
-                            Log::ok("Opening GitHub Release v2 page...");
                             Log::ok("========================================");
-                            ShellExecuteA(NULL, "open", "https://github.com/ewinnery/webRPC/releases/tag/v2", NULL, NULL, SW_SHOWNORMAL);
+                            
+                            std::string exeUrl = "https://github.com/ewinnery/webRPC/releases/download/v2/webRPC.exe";
+                            size_t exePos = jsonStr.find("\"exe_download_url\":");
+                            if (exePos != std::string::npos) {
+                                size_t eq1 = jsonStr.find('"', exePos + 19);
+                                size_t eq2 = jsonStr.find('"', eq1 + 1);
+                                if (eq1 != std::string::npos && eq2 != std::string::npos) {
+                                    exeUrl = jsonStr.substr(eq1 + 1, eq2 - eq1 - 1);
+                                }
+                            }
+                            
+                            std::string msg = "A new version of WebRPC (v" + remoteVer + ") is available!\n\n"
+                                              "• Yes = Automatic Update (Auto download & restart)\n"
+                                              "• No = Manual Update (Open GitHub Releases page)\n"
+                                              "• Cancel = Remind Later (Postpone for 24 hours)";
+                            
+                            int res = MessageBoxA(NULL, msg.c_str(), "WebRPC Update Available", MB_YESNOCANCEL | MB_ICONINFORMATION | MB_TOPMOST);
+                            if (res == IDYES) {
+                                performAutoUpdate(exeUrl);
+                            } else if (res == IDNO) {
+                                ShellExecuteA(NULL, "open", "https://github.com/ewinnery/webRPC/releases/tag/v2", NULL, NULL, SW_SHOWNORMAL);
+                            } else if (res == IDCANCEL) {
+                                long long now = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+                                FILE* pfp = fopen(postponeFile.c_str(), "wb");
+                                if (pfp) {
+                                    fprintf(pfp, "%lld", now);
+                                    fclose(pfp);
+                                }
+                                Log::info("Update postponed for 24 hours.");
+                            }
                         }
                     }
                 }

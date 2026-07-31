@@ -13,20 +13,46 @@ document.addEventListener('DOMContentLoaded', () => {
   loadActivity();
 });
 
+let isUpdateRequired = false;
+
 function checkUpdateBanner() {
-  chrome.storage.local.get(['updateAvailable', 'remoteVersion', 'downloadUrl'], (data) => {
-    const banner = document.getElementById('updateBanner');
-    if (banner) {
-      if (data.updateAvailable) {
-        banner.style.display = 'block';
-        const verEl = document.getElementById('updateVer');
-        if (verEl && data.remoteVersion) verEl.textContent = data.remoteVersion;
-        banner.onclick = () => {
+  chrome.storage.local.get(['updateAvailable', 'remoteVersion', 'downloadUrl', 'updateDismissedUntil'], (data) => {
+    const updateSec = document.getElementById('updateSection');
+    if (!updateSec) return;
+    
+    const now = Date.now();
+    if (data.updateDismissedUntil && now < data.updateDismissedUntil) {
+      isUpdateRequired = false;
+      updateConnectionUI();
+      return;
+    }
+    
+    if (data.updateAvailable) {
+      isUpdateRequired = true;
+      const verEl = document.getElementById('updateVer');
+      if (verEl && data.remoteVersion) verEl.textContent = data.remoteVersion;
+      
+      const updateBtn = document.getElementById('updateAutoBtn');
+      if (updateBtn) {
+        updateBtn.onclick = () => {
           chrome.tabs.create({ url: data.downloadUrl || 'https://github.com/ewinnery/webRPC/releases/tag/v2' });
         };
-      } else {
-        banner.style.display = 'none';
       }
+
+      const laterBtn = document.getElementById('updateLaterBtn');
+      if (laterBtn) {
+        laterBtn.onclick = () => {
+          const dismissUntil = Date.now() + (24 * 60 * 60 * 1000);
+          chrome.storage.local.set({ updateDismissedUntil: dismissUntil }, () => {
+            isUpdateRequired = false;
+            updateConnectionUI();
+          });
+        };
+      }
+      updateConnectionUI();
+    } else {
+      isUpdateRequired = false;
+      updateConnectionUI();
     }
   });
 }
@@ -124,16 +150,30 @@ function checkStatus() {
 }
 
 function updateConnectionUI() {
+  const updateSec = document.getElementById('updateSection');
   const dl = document.getElementById('downloadSection');
   const main = document.getElementById('mainContent');
   const dot = document.getElementById('headerDot');
   const label = document.getElementById('headerLabel');
+  
+  if (isUpdateRequired) {
+    if (updateSec) updateSec.style.display = 'flex';
+    if (dl) dl.style.display = 'none';
+    if (main) main.style.display = 'none';
+    return;
+  }
+  
+  if (updateSec) updateSec.style.display = 'none';
   if (clientConnected) {
-    dl.style.display = 'none'; main.style.display = 'flex';
-    dot.className = 'connection-dot connected'; label.textContent = 'Connected';
+    if (dl) dl.style.display = 'none';
+    if (main) main.style.display = 'flex';
+    if (dot) dot.className = 'connection-dot connected';
+    if (label) label.textContent = 'Connected';
   } else {
-    dl.style.display = 'flex'; main.style.display = 'none';
-    dot.className = 'connection-dot'; label.textContent = 'Offline';
+    if (dl) dl.style.display = 'flex';
+    if (main) main.style.display = 'none';
+    if (dot) dot.className = 'connection-dot';
+    if (label) label.textContent = 'Offline';
   }
 }
 
