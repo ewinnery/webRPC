@@ -150,10 +150,14 @@ function isLocal(d) {
 }
 
 function getSiteFavicon(domain) {
-  if (!domain) return '';
+  if (!domain) return 'https://raw.githubusercontent.com/ewinnery/webRPC/main/extension/icons/icon-512.png';
   const d = domain.toLowerCase().replace(/^www\./, '');
+  if (d.includes('google.')) return 'https://raw.githubusercontent.com/ewinnery/webRPC/main/docs/google.png';
+  if (d.includes('chatgpt.com') || d.includes('openai.com')) return 'https://cdn.openai.com/chatgpt/share-og.png';
+  if (d.includes('youtube.com')) return 'https://icon.horse/icon/youtube.com';
+  if (d.includes('github.com')) return 'https://icon.horse/icon/github.com';
   const root = d.split('.').slice(-2).join('.');
-  return 'https://logo.clearbit.com/' + root;
+  return 'https://icon.horse/icon/' + root;
 }
 
 function sanitizeImage(url, domain) {

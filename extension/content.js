@@ -46,105 +46,103 @@ function platformName(url) {
 }
 
 const KNOWN_ICONS = {
+  'youtube.com': 'https://icon.horse/icon/youtube.com',
+  'twitch.tv': 'https://icon.horse/icon/twitch.tv',
+  'netflix.com': 'https://icon.horse/icon/netflix.com',
+  'disneyplus.com': 'https://icon.horse/icon/disneyplus.com',
+  'hulu.com': 'https://icon.horse/icon/hulu.com',
+  'primevideo.com': 'https://icon.horse/icon/primevideo.com',
+  'crunchyroll.com': 'https://icon.horse/icon/crunchyroll.com',
+  'bilibili.com': 'https://icon.horse/icon/bilibili.com',
+  'kick.com': 'https://icon.horse/icon/kick.com',
+  'rumble.com': 'https://icon.horse/icon/rumble.com',
+  'dailymotion.com': 'https://icon.horse/icon/dailymotion.com',
+  'vimeo.com': 'https://icon.horse/icon/vimeo.com',
+  'plex.tv': 'https://icon.horse/icon/plex.tv',
+  'hbomax.com': 'https://icon.horse/icon/hbomax.com',
+  'max.com': 'https://icon.horse/icon/max.com',
+  'peacocktv.com': 'https://icon.horse/icon/peacocktv.com',
+  'paramountplus.com': 'https://icon.horse/icon/paramountplus.com',
+  'funimation.com': 'https://icon.horse/icon/funimation.com',
+  'ani.me': 'https://icon.horse/icon/ani.me',
   
-  'youtube.com': 'https://logo.clearbit.com/youtube.com',
-  'twitch.tv': 'https://logo.clearbit.com/twitch.tv',
-  'netflix.com': 'https://logo.clearbit.com/netflix.com',
-  'disneyplus.com': 'https://logo.clearbit.com/disneyplus.com',
-  'hulu.com': 'https://logo.clearbit.com/hulu.com',
-  'primevideo.com': 'https://logo.clearbit.com/primevideo.com',
-  'crunchyroll.com': 'https://logo.clearbit.com/crunchyroll.com',
-  'bilibili.com': 'https://logo.clearbit.com/bilibili.com',
-  'kick.com': 'https://logo.clearbit.com/kick.com',
-  'rumble.com': 'https://logo.clearbit.com/rumble.com',
-  'dailymotion.com': 'https://logo.clearbit.com/dailymotion.com',
-  'vimeo.com': 'https://logo.clearbit.com/vimeo.com',
-  'plex.tv': 'https://logo.clearbit.com/plex.tv',
-  'hbomax.com': 'https://logo.clearbit.com/hbomax.com',
-  'max.com': 'https://logo.clearbit.com/max.com',
-  'peacocktv.com': 'https://logo.clearbit.com/peacocktv.com',
-  'paramountplus.com': 'https://logo.clearbit.com/paramountplus.com',
-  'funimation.com': 'https://logo.clearbit.com/funimation.com',
-  'ani.me': 'https://logo.clearbit.com/ani.me',
+  'spotify.com': 'https://icon.horse/icon/spotify.com',
+  'soundcloud.com': 'https://icon.horse/icon/soundcloud.com',
+  'music.apple.com': 'https://icon.horse/icon/apple.com',
+  'deezer.com': 'https://icon.horse/icon/deezer.com',
+  'tidal.com': 'https://icon.horse/icon/tidal.com',
+  'pandora.com': 'https://icon.horse/icon/pandora.com',
+  'bandcamp.com': 'https://icon.horse/icon/bandcamp.com',
   
-  'spotify.com': 'https://logo.clearbit.com/spotify.com',
-  'soundcloud.com': 'https://logo.clearbit.com/soundcloud.com',
-  'music.apple.com': 'https://logo.clearbit.com/apple.com',
-  'deezer.com': 'https://logo.clearbit.com/deezer.com',
-  'tidal.com': 'https://logo.clearbit.com/tidal.com',
-  'pandora.com': 'https://logo.clearbit.com/pandora.com',
-  'bandcamp.com': 'https://logo.clearbit.com/bandcamp.com',
+  'discord.com': 'https://icon.horse/icon/discord.com',
+  'telegram.org': 'https://icon.horse/icon/telegram.org',
+  'twitter.com': 'https://icon.horse/icon/twitter.com',
+  'x.com': 'https://icon.horse/icon/x.com',
+  'reddit.com': 'https://icon.horse/icon/reddit.com',
+  'facebook.com': 'https://icon.horse/icon/facebook.com',
+  'instagram.com': 'https://icon.horse/icon/instagram.com',
+  'tiktok.com': 'https://icon.horse/icon/tiktok.com',
+  'linkedin.com': 'https://icon.horse/icon/linkedin.com',
+  'pinterest.com': 'https://icon.horse/icon/pinterest.com',
+  'tumblr.com': 'https://icon.horse/icon/tumblr.com',
+  'snapchat.com': 'https://icon.horse/icon/snapchat.com',
+  'threads.net': 'https://icon.horse/icon/threads.net',
+  'mastodon.social': 'https://icon.horse/icon/mastodon.social',
+  'bsky.app': 'https://icon.horse/icon/bsky.app',
+  'vk.com': 'https://icon.horse/icon/vk.com',
+  'ok.ru': 'https://icon.horse/icon/ok.ru',
   
-  'discord.com': 'https://logo.clearbit.com/discord.com',
-  'telegram.org': 'https://logo.clearbit.com/telegram.org',
-  'twitter.com': 'https://logo.clearbit.com/twitter.com',
-  'x.com': 'https://logo.clearbit.com/x.com',
-  'reddit.com': 'https://logo.clearbit.com/reddit.com',
-  'facebook.com': 'https://logo.clearbit.com/facebook.com',
-  'instagram.com': 'https://logo.clearbit.com/instagram.com',
-  'tiktok.com': 'https://logo.clearbit.com/tiktok.com',
-  'linkedin.com': 'https://logo.clearbit.com/linkedin.com',
-  'pinterest.com': 'https://logo.clearbit.com/pinterest.com',
-  'tumblr.com': 'https://logo.clearbit.com/tumblr.com',
-  'snapchat.com': 'https://logo.clearbit.com/snapchat.com',
-  'threads.net': 'https://logo.clearbit.com/threads.net',
-  'mastodon.social': 'https://logo.clearbit.com/mastodon.social',
-  'bsky.app': 'https://logo.clearbit.com/bsky.app',
-  'vk.com': 'https://logo.clearbit.com/vk.com',
-  'ok.ru': 'https://logo.clearbit.com/ok.ru',
+  'whatsapp.com': 'https://icon.horse/icon/whatsapp.com',
+  'signal.org': 'https://icon.horse/icon/signal.org',
+  'messenger.com': 'https://icon.horse/icon/messenger.com',
   
-  'whatsapp.com': 'https://logo.clearbit.com/whatsapp.com',
-  'signal.org': 'https://logo.clearbit.com/signal.org',
-  'messenger.com': 'https://logo.clearbit.com/messenger.com',
+  'github.com': 'https://icon.horse/icon/github.com',
+  'gitlab.com': 'https://icon.horse/icon/gitlab.com',
+  'bitbucket.org': 'https://icon.horse/icon/bitbucket.org',
+  'stackoverflow.com': 'https://icon.horse/icon/stackoverflow.com',
+  'codepen.io': 'https://icon.horse/icon/codepen.io',
+  'replit.com': 'https://icon.horse/icon/replit.com',
+  'codesandbox.io': 'https://icon.horse/icon/codesandbox.io',
+  'npmjs.com': 'https://icon.horse/icon/npmjs.com',
+  'pypi.org': 'https://icon.horse/icon/pypi.org',
+  'hub.docker.com': 'https://icon.horse/icon/docker.com',
   
-  'github.com': 'https://logo.clearbit.com/github.com',
-  'gitlab.com': 'https://logo.clearbit.com/gitlab.com',
-  'bitbucket.org': 'https://logo.clearbit.com/bitbucket.org',
-  'stackoverflow.com': 'https://logo.clearbit.com/stackoverflow.com',
-  'codepen.io': 'https://logo.clearbit.com/codepen.io',
-  'replit.com': 'https://logo.clearbit.com/replit.com',
-  'codesandbox.io': 'https://logo.clearbit.com/codesandbox.io',
-  'npmjs.com': 'https://logo.clearbit.com/npmjs.com',
-  'pypi.org': 'https://logo.clearbit.com/pypi.org',
-  'hub.docker.com': 'https://logo.clearbit.com/docker.com',
+  'notion.so': 'https://icon.horse/icon/notion.so',
+  'figma.com': 'https://icon.horse/icon/figma.com',
+  'slack.com': 'https://icon.horse/icon/slack.com',
+  'zoom.us': 'https://icon.horse/icon/zoom.us',
+  'medium.com': 'https://icon.horse/icon/medium.com',
+  'trello.com': 'https://icon.horse/icon/trello.com',
+  'asana.com': 'https://icon.horse/icon/asana.com',
+  'miro.com': 'https://icon.horse/icon/miro.com',
+  'canva.com': 'https://icon.horse/icon/canva.com',
+  'airtable.com': 'https://icon.horse/icon/airtable.com',
   
-  'notion.so': 'https://logo.clearbit.com/notion.so',
-  'figma.com': 'https://logo.clearbit.com/figma.com',
-  'slack.com': 'https://logo.clearbit.com/slack.com',
-  'zoom.us': 'https://logo.clearbit.com/zoom.us',
-  'medium.com': 'https://logo.clearbit.com/medium.com',
-  'trello.com': 'https://logo.clearbit.com/trello.com',
-  'asana.com': 'https://logo.clearbit.com/asana.com',
-  'miro.com': 'https://logo.clearbit.com/miro.com',
-  'canva.com': 'https://logo.clearbit.com/canva.com',
-  'airtable.com': 'https://logo.clearbit.com/airtable.com',
+  'google.com': 'https://raw.githubusercontent.com/ewinnery/webRPC/main/docs/google.png',
+  'docs.google.com': 'https://raw.githubusercontent.com/ewinnery/webRPC/main/docs/google.png',
+  'drive.google.com': 'https://raw.githubusercontent.com/ewinnery/webRPC/main/docs/google.png',
+  'mail.google.com': 'https://raw.githubusercontent.com/ewinnery/webRPC/main/docs/google.png',
+  'meet.google.com': 'https://raw.githubusercontent.com/ewinnery/webRPC/main/docs/google.png',
   
-  'google.com': 'https://logo.clearbit.com/google.com',
-  'docs.google.com': 'https://logo.clearbit.com/google.com',
-  'drive.google.com': 'https://logo.clearbit.com/google.com',
-  'mail.google.com': 'https://logo.clearbit.com/gmail.com',
-  'meet.google.com': 'https://logo.clearbit.com/google.com',
+  'chatgpt.com': 'https://cdn.openai.com/chatgpt/share-og.png',
+  'chat.openai.com': 'https://cdn.openai.com/chatgpt/share-og.png',
+  'claude.ai': 'https://icon.horse/icon/anthropic.com',
+  'gemini.google.com': 'https://raw.githubusercontent.com/ewinnery/webRPC/main/docs/google.png',
+  'perplexity.ai': 'https://icon.horse/icon/perplexity.ai',
   
-  'chatgpt.com': 'https://logo.clearbit.com/openai.com',
-  'chat.openai.com': 'https://logo.clearbit.com/openai.com',
-  'claude.ai': 'https://logo.clearbit.com/anthropic.com',
-  'gemini.google.com': 'https://logo.clearbit.com/google.com',
-  'perplexity.ai': 'https://logo.clearbit.com/perplexity.ai',
+  'amazon.com': 'https://icon.horse/icon/amazon.com',
+  'ebay.com': 'https://icon.horse/icon/ebay.com',
+  'wikipedia.org': 'https://icon.horse/icon/wikipedia.org',
+  'steampowered.com': 'https://icon.horse/icon/steampowered.com',
+  'store.steampowered.com': 'https://icon.horse/icon/steampowered.com',
+  'epicgames.com': 'https://icon.horse/icon/epicgames.com',
+  'roblox.com': 'https://icon.horse/icon/roblox.com',
   
-  'amazon.com': 'https://logo.clearbit.com/amazon.com',
-  'ebay.com': 'https://logo.clearbit.com/ebay.com',
-  'wikipedia.org': 'https://logo.clearbit.com/wikipedia.org',
-  'steampowered.com': 'https://logo.clearbit.com/steampowered.com',
-  'store.steampowered.com': 'https://logo.clearbit.com/steampowered.com',
-  'epic games.com': 'https://logo.clearbit.com/epicgames.com',
-  'roblox.com': 'https://logo.clearbit.com/roblox.com',
-  'twitch.tv': 'https://logo.clearbit.com/twitch.tv',
-  
-  'vercel.com': 'https://logo.clearbit.com/vercel.com',
-  'netlify.com': 'https://logo.clearbit.com/netlify.com',
-  'heroku.com': 'https://logo.clearbit.com/heroku.com',
-  'cloudflare.com': 'https://logo.clearbit.com/cloudflare.com',
-  'aws.amazon.com': 'https://logo.clearbit.com/amazon.com',
+  'vercel.com': 'https://icon.horse/icon/vercel.com',
+  'netlify.com': 'https://icon.horse/icon/netlify.com',
+  'heroku.com': 'https://icon.horse/icon/heroku.com',
+  'cloudflare.com': 'https://icon.horse/icon/cloudflare.com',
+  'aws.amazon.com': 'https://icon.horse/icon/amazon.com',
 };
 
 // ===== МЕГА-УНИВЕРСАЛ ДЛЯ ИЗВЛЕЧЕНИЯ FAVICON =====
@@ -303,7 +301,7 @@ async function bruteForceCommonPaths() {
 }
 
 function getKnownIcon(hostname) {
-  if (!hostname) return null;
+  if (!hostname) return 'https://raw.githubusercontent.com/ewinnery/webRPC/main/extension/icons/icon-512.png';
   const d = hostname.toLowerCase().replace(/^www\./, '');
 
   for (const [pattern, url] of Object.entries(KNOWN_ICONS)) {
@@ -311,7 +309,7 @@ function getKnownIcon(hostname) {
   }
 
   const root = d.split('.').slice(-2).join('.');
-  return 'https://logo.clearbit.com/' + root;
+  return 'https://icon.horse/icon/' + root;
 }
 
 let cachedFaviconUrl = null;
@@ -323,6 +321,14 @@ async function extractFavicon() {
   }
   cachedFaviconHref = location.href;
   cachedFaviconUrl = null;
+
+  const domain = location.hostname.toLowerCase();
+  
+  if (domain.includes('google.') || domain.includes('github.com') || domain.includes('chatgpt.com') || domain.includes('openai.com')) {
+    const known = getKnownIcon(domain);
+    cachedFaviconUrl = known;
+    return { url: known, score: 10000, source: "known-priority" };
+  }
 
   await waitForHeadStable(1500, 300);
 
@@ -352,22 +358,20 @@ async function extractFavicon() {
     }
   }
 
-  const known = getKnownIcon(location.hostname);
-  if (known) {
-    const check = await checkImage(known, 2000);
-    if (check && check.width > 0) {
-      cachedFaviconUrl = known;
-      return { url: known, score: 500, source: "known-fallback" };
-    }
-  }
-
-  cachedFaviconUrl = '';
-  return { url: '', score: 0, source: "none" };
+  const known = getKnownIcon(domain);
+  cachedFaviconUrl = known;
+  return { url: known, score: 500, source: "known-fallback" };
 }
 
 function getFavicon() {
   if (cachedFaviconUrl && cachedFaviconHref === location.href) return cachedFaviconUrl;
   cachedFaviconHref = location.href;
+
+  const domain = location.hostname.toLowerCase();
+  if (domain.includes('google.') || domain.includes('github.com') || domain.includes('chatgpt.com') || domain.includes('openai.com')) {
+    cachedFaviconUrl = getKnownIcon(domain);
+    return cachedFaviconUrl;
+  }
 
   const links = collectFromLinks();
   for (const link of links) {
@@ -384,8 +388,7 @@ function getFavicon() {
     }
   }
 
-  const known = getKnownIcon(location.hostname);
-  cachedFaviconUrl = known || '';
+  cachedFaviconUrl = getKnownIcon(domain);
   return cachedFaviconUrl;
 }
 
