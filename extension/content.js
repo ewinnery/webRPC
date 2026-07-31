@@ -188,10 +188,22 @@ function scoreCandidate(url, sizes, type, relHint) {
     const n = parseInt(sizes.split("x")[0], 10);
     if (!isNaN(n)) score += n;
   }
-  if (type === "image/svg+xml" || url.endsWith(".svg")) score += 500;
+  if (type === "image/svg+xml" || url.endsWith(".svg")) score -= 1000;
+  if (url.endsWith(".ico")) score -= 1000;
   if (relHint?.includes("apple-touch")) score += 100;
   if (relHint === "mask-icon") score -= 50;
+  if (/\.(png|jpg|jpeg|webp|gif)/i.test(url)) score += 200;
   return score;
+}
+
+function isDiscordSafe(url) {
+  if (!url) return false;
+  const l = url.toLowerCase();
+  if (l.endsWith('.ico') || l.includes('.ico?')) return false;
+  if (l.endsWith('.svg') || l.includes('.svg?')) return false;
+  if (l.startsWith('data:')) return false;
+  if (!l.startsWith('http://') && !l.startsWith('https://')) return false;
+  return true;
 }
 
 function collectFromLinks(doc = document) {
@@ -253,54 +265,53 @@ function collectFromIframes() {
   return out;
 }
 
-function checkImage(url, timeoutMs = 4000) {
+async function waitForHeadStable(maxWait = 1500, grace = 300) {
+  return new Promise(resolve => {
+    let timer = null;
+    const done = () => { if (obs) obs.disconnect(); resolve(); };
+    const obs = new MutationObserver(() => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(done, grace);
+    });
+    obs.observe(document.head || document.documentElement, { childList: true, subtree: true });
+    setTimeout(done, maxWait);
+  });
+}
+
+function checkImage(url, timeout = 2000) {
   return new Promise(resolve => {
     const img = new Image();
-    const timer = setTimeout(() => { img.src = ""; resolve(null); }, timeoutMs);
-    img.onload = () => {
-      clearTimeout(timer);
-      resolve({ url, width: img.naturalWidth, height: img.naturalHeight });
-    };
+    const timer = setTimeout(() => resolve(null), timeout);
+    img.onload = () => { clearTimeout(timer); resolve({ width: img.naturalWidth, height: img.naturalHeight }); };
     img.onerror = () => { clearTimeout(timer); resolve(null); };
     img.src = url;
   });
 }
 
-function waitForHeadStable(maxWaitMs = 3000, quietMs = 400) {
-  return new Promise(resolve => {
-    let timer;
-    const observer = new MutationObserver(() => {
-      clearTimeout(timer);
-      timer = setTimeout(finish, quietMs);
-    });
-    if (document.head) {
-      observer.observe(document.head, { childList: true, subtree: true });
-    }
-    function finish() {
-      observer.disconnect();
-      resolve();
-    }
-    timer = setTimeout(finish, quietMs);
-    setTimeout(finish, maxWaitMs);
-  });
-}
-
 async function bruteForceCommonPaths() {
   const origin = location.origin;
-  const results = await Promise.all(
-    COMMON_PATHS.map(p => checkImage(origin + p, 2500))
-  );
-  return results
-    .filter(Boolean)
+  const results = await Promise.all(COMMON_PATHS.map(async p => {
+    const url = origin + p;
+    if (!isDiscordSafe(url)) return null;
+    try {
+      const r = await fetch(url, { method: "HEAD", mode: "no-cors" });
+      return { url, ok: true };
+    } catch { return null; }
+  }));
+  return results.filter(Boolean)
     .map(r => ({ url: r.url, score: 1, source: "bruteforce" }));
 }
 
-function getKnownIcon(domain) {
-  if (!domain) return null;
-  const d = domain.toLowerCase();
-  if (d.includes('google.')) return 'https://raw.githubusercontent.com/ewinnery/webRPC/main/docs/google.png';
-  if (d.includes('chatgpt.com') || d.includes('openai.com')) return 'https://cdn.openai.com/chatgpt/share-og.png';
-  return null;
+function getKnownIcon(hostname) {
+  if (!hostname) return null;
+  const d = hostname.toLowerCase().replace(/^www\./, '');
+
+  for (const [pattern, url] of Object.entries(KNOWN_ICONS)) {
+    if (d === pattern || d.endsWith('.' + pattern)) return url;
+  }
+
+  const root = d.split('.').slice(-2).join('.');
+  return 'https://logo.clearbit.com/' + root;
 }
 
 let cachedFaviconUrl = null;
@@ -312,13 +323,6 @@ async function extractFavicon() {
   }
   cachedFaviconHref = location.href;
   cachedFaviconUrl = null;
-
-  const domain = location.hostname;
-  const known = getKnownIcon(domain);
-  if (known) {
-    cachedFaviconUrl = known;
-    return { url: known, score: 10000, source: "known" };
-  }
 
   await waitForHeadStable(1500, 300);
 
@@ -340,8 +344,7 @@ async function extractFavicon() {
   const sorted = [...byUrl.values()].sort((a, b) => b.score - a.score);
 
   for (const candidate of sorted) {
-    const lUrl = candidate.url.toLowerCase();
-    if (lUrl.endsWith('.ico') || lUrl.includes('.ico?')) continue;
+    if (!isDiscordSafe(candidate.url)) continue;
     const check = await checkImage(candidate.url, 2000);
     if (check && check.width > 0) {
       cachedFaviconUrl = candidate.url;
@@ -349,38 +352,40 @@ async function extractFavicon() {
     }
   }
 
-  cachedFaviconUrl = 'https://raw.githubusercontent.com/ewinnery/webRPC/main/extension/icons/icon-512.png';
-  return { url: cachedFaviconUrl, score: 0, source: "last-resort" };
+  const known = getKnownIcon(location.hostname);
+  if (known) {
+    const check = await checkImage(known, 2000);
+    if (check && check.width > 0) {
+      cachedFaviconUrl = known;
+      return { url: known, score: 500, source: "known-fallback" };
+    }
+  }
+
+  cachedFaviconUrl = '';
+  return { url: '', score: 0, source: "none" };
 }
 
 function getFavicon() {
   if (cachedFaviconUrl && cachedFaviconHref === location.href) return cachedFaviconUrl;
   cachedFaviconHref = location.href;
 
-  const domain = location.hostname;
-  const known = getKnownIcon(domain);
-  if (known) {
-    cachedFaviconUrl = known;
-    return known;
-  }
-
   const links = collectFromLinks();
   for (const link of links) {
-    const lUrl = link.url.toLowerCase();
-    if (!lUrl.endsWith('.ico') && !lUrl.includes('.ico?')) {
+    if (isDiscordSafe(link.url)) {
       cachedFaviconUrl = link.url;
       return cachedFaviconUrl;
     }
   }
   const metas = collectFromMeta();
   for (const meta of metas) {
-    const lUrl = meta.url.toLowerCase();
-    if (!lUrl.endsWith('.ico') && !lUrl.includes('.ico?')) {
+    if (isDiscordSafe(meta.url)) {
       cachedFaviconUrl = meta.url;
       return cachedFaviconUrl;
     }
   }
-  cachedFaviconUrl = 'https://raw.githubusercontent.com/ewinnery/webRPC/main/extension/icons/icon-512.png';
+
+  const known = getKnownIcon(location.hostname);
+  cachedFaviconUrl = known || '';
   return cachedFaviconUrl;
 }
 

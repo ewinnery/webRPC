@@ -150,20 +150,19 @@ function isLocal(d) {
 }
 
 function getSiteFavicon(domain) {
-  if (!domain) return 'https://raw.githubusercontent.com/ewinnery/webRPC/main/extension/icons/icon-512.png';
-  const d = domain.toLowerCase();
-  if (d.includes('google.')) return 'https://raw.githubusercontent.com/ewinnery/webRPC/main/docs/google.png';
-  if (d.includes('chatgpt.com') || d.includes('openai.com')) return 'https://cdn.openai.com/chatgpt/share-og.png';
-  return 'https://raw.githubusercontent.com/ewinnery/webRPC/main/extension/icons/icon-512.png';
+  if (!domain) return '';
+  const d = domain.toLowerCase().replace(/^www\./, '');
+  const root = d.split('.').slice(-2).join('.');
+  return 'https://logo.clearbit.com/' + root;
 }
 
 function sanitizeImage(url, domain) {
-  if (!url || url.startsWith('data:') || url === 'webrpc' || url === 'icon_globe') return getSiteFavicon(domain);
-  if (!url.startsWith('http://') && !url.startsWith('https://')) {
-    return getSiteFavicon(domain);
-  }
+  if (!url || url === 'webrpc' || url === 'icon_globe') return getSiteFavicon(domain);
+  if (url.startsWith('data:')) return getSiteFavicon(domain);
+  if (!url.startsWith('http://') && !url.startsWith('https://')) return getSiteFavicon(domain);
   const l = url.toLowerCase();
-  if (l.includes('.ico') || l.includes('.svg')) return getSiteFavicon(domain);
+  if (l.endsWith('.ico') || l.includes('.ico?') || l.includes('.ico/')) return getSiteFavicon(domain);
+  if (l.endsWith('.svg') || l.includes('.svg?') || l.includes('.svg/')) return getSiteFavicon(domain);
   return url;
 }
 
@@ -172,8 +171,9 @@ function processActivity(activity, tab) {
   try { domain = new URL(activity.url).hostname; } catch {}
 
   let largeImage = activity.largeImage;
-  if ((!largeImage || largeImage === 'icon_globe' || largeImage === 'webrpc') && tab?.favIconUrl) {
-    if (tab.favIconUrl.startsWith('http')) {
+  
+  if (!largeImage || largeImage === 'icon_globe' || largeImage === 'webrpc' || !largeImage.startsWith('http')) {
+    if (tab?.favIconUrl && tab.favIconUrl.startsWith('http')) {
       const l = tab.favIconUrl.toLowerCase();
       if (!l.includes('.svg') && !l.includes('.ico') && !l.includes('data:')) {
         largeImage = tab.favIconUrl;
@@ -182,7 +182,7 @@ function processActivity(activity, tab) {
   }
 
   largeImage = sanitizeImage(largeImage, domain);
-  if (!largeImage) largeImage = 'icon_globe';
+  if (!largeImage) largeImage = getSiteFavicon(domain);
 
   const out = {
     type: activity.type || 'page',
