@@ -80,7 +80,6 @@ void DiscordManager::setActivity(const ActivityData& activity) {
     
     std::string largeKey = activity.largeImage;
     
-    // Strip query strings
     auto qpos = largeKey.find('?');
     if (qpos != std::string::npos) {
         largeKey = largeKey.substr(0, qpos);
@@ -92,21 +91,12 @@ void DiscordManager::setActivity(const ActivityData& activity) {
     bool isInvalid = largeKey.empty() || 
         largeKey.find("data:") == 0 || 
         largeKey == "webrpc" || largeKey == "icon_globe" ||
-        lKeyLower.rfind(".ico") != std::string::npos;
+        lKeyLower.rfind(".ico") != std::string::npos ||
+        lKeyLower.rfind(".svg") != std::string::npos;
     
     if (isInvalid) {
-        // Use registered app asset as safe fallback
         largeKey = "webrpc";
-    } else if (largeKey.find("https://") == 0) {
-        // Discord IPC requires mp: prefix for external URLs
-        // Format: mp:external/https/domain/path
-        std::string stripped = largeKey.substr(8); // remove "https://"
-        largeKey = "mp:external/https/" + stripped;
-    } else if (largeKey.find("http://") == 0) {
-        std::string stripped = largeKey.substr(7); // remove "http://"
-        largeKey = "mp:external/http/" + stripped;
     }
-    // else: it's already an asset key like "webrpc", use as-is
     
     Log::debug("largeKey resolved to: " + largeKey);
     presence.setLargeImageKey(largeKey);
