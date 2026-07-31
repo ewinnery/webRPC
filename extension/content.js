@@ -147,172 +147,212 @@ const KNOWN_ICONS = {
   'aws.amazon.com': 'https://logo.clearbit.com/amazon.com',
 };
 
-const REL_KEYWORDS = [
-  "icon", "shortcut icon", "apple-touch-icon",
-  "apple-touch-icon-precomposed", "mask-icon", "fluid-icon"
+// ===== МЕГА-УНИВЕРСАЛ ДЛЯ ИЗВЛЕЧЕНИЯ FAVICON =====
+
+const REL_PATTERNS = [
+  "icon",
+  "shortcut icon",
+  "apple-touch-icon",
+  "apple-touch-icon-precomposed",
+  "mask-icon",
+  "fluid-icon",
 ];
 
-function collectFaviconCandidates() {
-  const candidates = [];
-  const baseUrl = document.baseURI || window.location.href;
+const META_PATTERNS = [
+  { attr: "name", value: "msapplication-TileImage" },
+  { attr: "name", value: "msapplication-square310x310logo" },
+  { attr: "name", value: "msapplication-square150x150logo" },
+  { attr: "property", value: "og:image" },
+  { attr: "property", value: "og:image:secure_url" },
+  { attr: "name", value: "twitter:image" },
+  { attr: "itemprop", value: "image" }
+];
 
-  const metaSels = [
-    'meta[property="og:image"]',
-    'meta[property="og:image:secure_url"]',
-    'meta[name="twitter:image"]',
-    'meta[itemprop="image"]'
-  ];
-  for (const sel of metaSels) {
-    for (const el of document.querySelectorAll(sel)) {
-      const content = el.getAttribute('content');
-      if (content && !content.startsWith('data:')) {
-        let raw = content;
-        if (raw.startsWith('//')) raw = window.location.protocol + raw;
-        try {
-          const url = new URL(raw, baseUrl).href;
-          candidates.push({ url, score: 2000, rel: 'og:image' });
-        } catch {}
-      }
-    }
-  }
+const COMMON_PATHS = [
+  "/favicon.ico",
+  "/favicon.png",
+  "/favicon.svg",
+  "/apple-touch-icon.png",
+  "/apple-touch-icon-precomposed.png",
+  "/assets/favicon.ico",
+  "/static/favicon.ico",
+];
 
-  const links = Array.from(document.querySelectorAll("link[rel]"));
-  for (const link of links) {
-    const rel = link.getAttribute("rel")?.toLowerCase() || "";
-    if (REL_KEYWORDS.some(k => rel.includes(k))) {
-      let href = link.getAttribute("href");
-      if (!href || href.startsWith('data:')) continue;
-      if (href.startsWith('//')) href = window.location.protocol + href;
-      const sizesAttr = link.getAttribute("sizes") || "";
-      let score = 10;
-      if (sizesAttr.includes("x")) {
-        score = parseInt(sizesAttr.split("x")[0], 10) || 10;
-      }
-      const type = (link.getAttribute("type") || "").toLowerCase();
-      if (type.includes("png") || type.includes("jpeg") || type.includes("webp")) score += 500;
-      if (rel.includes("apple-touch-icon")) score += 800;
-
-      try {
-        const url = new URL(href, baseUrl).href;
-        candidates.push({ url, score, rel });
-      } catch {}
-    }
-  }
-
-  const logoImgs = document.querySelectorAll('header img[src], nav img[src], [class*="logo"] img[src], [id*="logo"] img[src]');
-  for (const img of logoImgs) {
-    let src = img.getAttribute('src');
-    if (src && !src.startsWith('data:')) {
-      if (src.startsWith('//')) src = window.location.protocol + src;
-      try {
-        const url = new URL(src, baseUrl).href;
-        candidates.push({ url, score: 100, rel: 'logo-img' });
-      } catch {}
-    }
-  }
-
-  candidates.sort((a, b) => b.score - a.score);
-  return candidates;
+function abs(href, base = document.baseURI) {
+  try { return new URL(href, base).href; } catch { return null; }
 }
 
-async function getManifestIcons() {
-  const manifestLink = document.querySelector('link[rel="manifest"]');
-  if (!manifestLink) return [];
+function scoreCandidate(url, sizes, type, relHint) {
+  let score = 0;
+  if (sizes && sizes.includes("x")) {
+    const n = parseInt(sizes.split("x")[0], 10);
+    if (!isNaN(n)) score += n;
+  }
+  if (type === "image/svg+xml" || url.endsWith(".svg")) score += 500;
+  if (relHint?.includes("apple-touch")) score += 100;
+  if (relHint === "mask-icon") score -= 50;
+  return score;
+}
+
+function collectFromLinks(doc = document) {
+  const out = [];
+  doc.querySelectorAll("link[rel]").forEach(link => {
+    const rel = (link.getAttribute("rel") || "").toLowerCase();
+    if (!REL_PATTERNS.some(p => rel.includes(p))) return;
+    const href = link.getAttribute("href");
+    if (!href) return;
+    const url = abs(href, doc.baseURI);
+    if (!url) return;
+    out.push({
+      url,
+      score: scoreCandidate(url, link.getAttribute("sizes"), link.getAttribute("type"), rel),
+      source: "link:" + rel,
+    });
+  });
+  return out;
+}
+
+function collectFromMeta(doc = document) {
+  const out = [];
+  META_PATTERNS.forEach(({ attr, value }) => {
+    const el = doc.querySelector(`meta[${attr}="${value}"]`);
+    const content = el?.getAttribute("content");
+    if (!content) return;
+    const url = abs(content, doc.baseURI);
+    if (url) out.push({ url, score: value.includes("og:") ? 400 : 50, source: "meta:" + value });
+  });
+  return out;
+}
+
+async function collectFromManifest(doc = document) {
+  const link = doc.querySelector('link[rel="manifest"]');
+  if (!link?.href) return [];
   try {
-    let manifestHref = manifestLink.getAttribute('href');
-    if (!manifestHref) return [];
-    if (manifestHref.startsWith('//')) manifestHref = window.location.protocol + manifestHref;
-    const baseUrl = document.baseURI || window.location.href;
-    const manifestUrl = new URL(manifestHref, baseUrl).href;
-    const resp = await fetch(manifestUrl, { cache: 'force-cache' });
-    const manifest = await resp.json();
-    if (!Array.isArray(manifest.icons)) return [];
-    return manifest.icons.map(icon => {
-      let src = icon.src;
-      if (!src) return null;
-      if (src.startsWith('//')) src = window.location.protocol + src;
-      return {
-        url: new URL(src, manifestUrl).href,
-        score: (parseInt(icon.sizes?.split("x")[0], 10) || 10) + 300,
-        rel: "manifest"
-      };
-    }).filter(Boolean);
+    const manifestUrl = abs(link.getAttribute("href"), doc.baseURI);
+    const resp = await fetch(manifestUrl, { credentials: "omit", mode: "cors" });
+    const json = await resp.json();
+    if (!Array.isArray(json.icons)) return [];
+    return json.icons.map(icon => ({
+      url: abs(icon.src, manifestUrl),
+      score: scoreCandidate(icon.src, icon.sizes, icon.type, "manifest") + 200,
+      source: "manifest",
+    })).filter(c => c.url);
   } catch {
     return [];
   }
 }
 
+function collectFromIframes() {
+  const out = [];
+  document.querySelectorAll("iframe").forEach(iframe => {
+    try {
+      const doc = iframe.contentDocument;
+      if (doc) out.push(...collectFromLinks(doc), ...collectFromMeta(doc));
+    } catch {}
+  });
+  return out;
+}
+
+function checkImage(url, timeoutMs = 4000) {
+  return new Promise(resolve => {
+    const img = new Image();
+    const timer = setTimeout(() => { img.src = ""; resolve(null); }, timeoutMs);
+    img.onload = () => {
+      clearTimeout(timer);
+      resolve({ url, width: img.naturalWidth, height: img.naturalHeight });
+    };
+    img.onerror = () => { clearTimeout(timer); resolve(null); };
+    img.src = url;
+  });
+}
+
+function waitForHeadStable(maxWaitMs = 3000, quietMs = 400) {
+  return new Promise(resolve => {
+    let timer;
+    const observer = new MutationObserver(() => {
+      clearTimeout(timer);
+      timer = setTimeout(finish, quietMs);
+    });
+    if (document.head) {
+      observer.observe(document.head, { childList: true, subtree: true });
+    }
+    function finish() {
+      observer.disconnect();
+      resolve();
+    }
+    timer = setTimeout(finish, quietMs);
+    setTimeout(finish, maxWaitMs);
+  });
+}
+
+async function bruteForceCommonPaths() {
+  const origin = location.origin;
+  const results = await Promise.all(
+    COMMON_PATHS.map(p => checkImage(origin + p, 2500))
+  );
+  return results
+    .filter(Boolean)
+    .map(r => ({ url: r.url, score: 1, source: "bruteforce" }));
+}
+
 let cachedFaviconUrl = null;
+
+async function extractFavicon() {
+  if (cachedFaviconUrl) return { url: cachedFaviconUrl, score: 9999, source: "cache" };
+
+  await waitForHeadStable(1500, 300);
+
+  let candidates = [
+    ...collectFromLinks(),
+    ...collectFromMeta(),
+    ...collectFromIframes(),
+    ...(await collectFromManifest()),
+  ];
+
+  if (candidates.length === 0) {
+    candidates = await bruteForceCommonPaths();
+  }
+
+  const byUrl = new Map();
+  for (const c of candidates) {
+    if (!byUrl.has(c.url) || byUrl.get(c.url).score < c.score) byUrl.set(c.url, c);
+  }
+  const sorted = [...byUrl.values()].sort((a, b) => b.score - a.score);
+
+  for (const candidate of sorted) {
+    const check = await checkImage(candidate.url, 2000);
+    if (check && check.width > 0) {
+      cachedFaviconUrl = candidate.url;
+      return { ...candidate, width: check.width, height: check.height };
+    }
+  }
+
+  const fallbackUrl = location.origin + "/favicon.ico";
+  cachedFaviconUrl = fallbackUrl;
+  return { url: fallbackUrl, score: 0, source: "last-resort" };
+}
 
 function getFavicon() {
   if (cachedFaviconUrl) return cachedFaviconUrl;
-
-  const candidates = collectFaviconCandidates();
-  for (const cand of candidates) {
-    if (cand.url && (cand.url.startsWith('http://') || cand.url.startsWith('https://'))) {
-      const l = cand.url.toLowerCase();
-      if (!l.includes('.svg')) {
-        cachedFaviconUrl = cand.url;
-        return cand.url;
-      }
-    }
-  }
-
-  try {
-    const baseUrl = document.baseURI || window.location.href;
-    cachedFaviconUrl = new URL("/favicon.ico", baseUrl).href;
+  const links = collectFromLinks();
+  if (links.length > 0) {
+    cachedFaviconUrl = links[0].url;
     return cachedFaviconUrl;
-  } catch {
-    return 'webrpc';
   }
-}
-
-async function resolveFaviconAsync() {
-  const candidates = collectFaviconCandidates();
-  try {
-    const manifestIcons = await getManifestIcons();
-    candidates.push(...manifestIcons);
-  } catch {}
-
-  candidates.sort((a, b) => b.score - a.score);
-
-  for (const cand of candidates) {
-    if (cand.url && (cand.url.startsWith('http://') || cand.url.startsWith('https://'))) {
-      const l = cand.url.toLowerCase();
-      if (!l.includes('.svg')) {
-        cachedFaviconUrl = cand.url;
-        return cand.url;
-      }
-    }
-  }
-
-  try {
-    const baseUrl = document.baseURI || window.location.href;
-    cachedFaviconUrl = new URL("/favicon.ico", baseUrl).href;
+  const metas = collectFromMeta();
+  if (metas.length > 0) {
+    cachedFaviconUrl = metas[0].url;
     return cachedFaviconUrl;
-  } catch {
-    return 'webrpc';
   }
+  return location.origin + "/favicon.ico";
 }
 
-function setupHeadObserver() {
-  if (!document.head) return;
-  const observer = new MutationObserver(async () => {
-    const newFav = await resolveFaviconAsync();
-    if (newFav && newFav !== cachedFaviconUrl) {
-      cachedFaviconUrl = newFav;
-      checkAndSendActivity();
-    }
-  });
-  observer.observe(document.head, { childList: true, subtree: true });
-  setTimeout(() => observer.disconnect(), 10000);
-}
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => setupHeadObserver());
-} else {
-  setupHeadObserver();
-}
+extractFavicon().then(result => {
+  if (result?.url) {
+    cachedFaviconUrl = result.url;
+    checkAndSendActivity();
+  }
+});
 
 function isAdPlaying() {
   if (document.querySelector('.ad-showing, .ad-interrupting, .video-ads .ad-preview, .ytp-ad-text, .ytp-ad-preview-text, [class*="ad-showing"]')) {
