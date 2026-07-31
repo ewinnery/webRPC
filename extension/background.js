@@ -150,19 +150,16 @@ function isLocal(d) {
 }
 
 function getSiteFavicon(domain) {
-  if (!domain || isLocal(domain)) return 'webrpc';
-  const clean = domain.replace(/^www\./, '');
-  return `https://${clean}/favicon.ico`;
+  return 'icon_globe';
 }
 
 function sanitizeImage(url, domain) {
-  if (!url || url.startsWith('data:')) return getSiteFavicon(domain);
+  if (!url || url.startsWith('data:') || url === 'webrpc' || url === 'icon_globe') return 'icon_globe';
   if (!url.startsWith('http://') && !url.startsWith('https://')) {
-    if (url.includes('/') && domain) {
-      try { return new URL(url, `https://${domain}`).href; } catch {}
-    }
-    return getSiteFavicon(domain);
+    return 'icon_globe';
   }
+  const l = url.toLowerCase();
+  if (l.includes('.ico') || l.includes('.svg')) return 'icon_globe';
   return url;
 }
 
@@ -171,7 +168,7 @@ function processActivity(activity, tab) {
   try { domain = new URL(activity.url).hostname; } catch {}
 
   let largeImage = activity.largeImage;
-  if ((!largeImage || largeImage === getSiteFavicon(domain)) && tab?.favIconUrl) {
+  if ((!largeImage || largeImage === 'icon_globe' || largeImage === 'webrpc') && tab?.favIconUrl) {
     if (tab.favIconUrl.startsWith('http')) {
       const l = tab.favIconUrl.toLowerCase();
       if (!l.includes('.svg') && !l.includes('.ico') && !l.includes('data:')) {
@@ -181,7 +178,7 @@ function processActivity(activity, tab) {
   }
 
   largeImage = sanitizeImage(largeImage, domain);
-  if (!largeImage) largeImage = getSiteFavicon(domain);
+  if (!largeImage) largeImage = 'icon_globe';
 
   const out = {
     type: activity.type || 'page',

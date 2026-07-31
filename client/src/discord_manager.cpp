@@ -88,7 +88,7 @@ void DiscordManager::setActivity(const ActivityData& activity) {
     
     if (largeKey.empty() || largeKey.find("data:") == 0 || 
         lKeyLower.rfind(".ico") != std::string::npos || lKeyLower.find(".ico?") != std::string::npos) {
-        largeKey = "webrpc";
+        largeKey = "icon_globe";
     }
     presence.setLargeImageKey(largeKey);
     presence.setLargeImageText(activity.largeText.empty() ? "WebRPC" : activity.largeText);
