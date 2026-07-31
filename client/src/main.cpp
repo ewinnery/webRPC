@@ -48,7 +48,11 @@ BOOL WINAPI consoleCtrlHandler(DWORD event) {
 #include <wininet.h>
 #pragma comment(lib, "wininet.lib")
 
-bool downloadFile(const std::string& url, const std::string& destPath) {
+#include "../include/version.hpp"
+
+static ConsoleMenu* g_menuPtr = nullptr;
+
+bool downloadFileWithProgress(const std::string& url, const std::string& destPath, std::function<void(size_t downloaded, size_t total)> progressFn) {
     HINTERNET hNet = InternetOpenA("WebRPC-Downloader", INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
     if (!hNet) return false;
     HINTERNET hUrl = InternetOpenUrlA(hNet, url.c_str(), NULL, 0, INTERNET_FLAG_RELOAD | INTERNET_FLAG_NO_CACHE_WRITE, 0);
@@ -56,46 +60,66 @@ bool downloadFile(const std::string& url, const std::string& destPath) {
         InternetCloseHandle(hNet);
         return false;
     }
+
+    size_t totalBytes = 0;
+    char lenBuf[64] = {0};
+    DWORD lenBufSize = sizeof(lenBuf);
+    if (HttpQueryInfoA(hUrl, HTTP_QUERY_CONTENT_LENGTH, lenBuf, &lenBufSize, NULL)) {
+        totalBytes = (size_t)std::stoull(lenBuf);
+    }
+
     FILE* fp = fopen(destPath.c_str(), "wb");
     if (!fp) {
         InternetCloseHandle(hUrl);
         InternetCloseHandle(hNet);
         return false;
     }
-    char buffer[4096];
+
+    char buffer[8192];
     DWORD bytesRead = 0;
+    size_t downloadedBytes = 0;
+
     while (InternetReadFile(hUrl, buffer, sizeof(buffer), &bytesRead) && bytesRead > 0) {
         fwrite(buffer, 1, bytesRead, fp);
+        downloadedBytes += bytesRead;
+        if (progressFn) progressFn(downloadedBytes, totalBytes);
     }
+
     fclose(fp);
     InternetCloseHandle(hUrl);
     InternetCloseHandle(hNet);
-    return true;
+    return downloadedBytes > 0;
 }
 
 void performAutoUpdate(const std::string& downloadUrl) {
-    char tempPath[MAX_PATH] = {0};
-    GetTempPathA(MAX_PATH, tempPath);
-    std::string newExePath = std::string(tempPath) + "webRPC_new.exe";
-    
-    char currentExePath[MAX_PATH] = {0};
-    GetModuleFileNameA(NULL, currentExePath, MAX_PATH);
+    std::thread([downloadUrl]() {
+        char tempPath[MAX_PATH] = {0};
+        GetTempPathA(MAX_PATH, tempPath);
+        std::string newExePath = std::string(tempPath) + "webRPC_update.exe";
+        
+        char currentExePath[MAX_PATH] = {0};
+        GetModuleFileNameA(NULL, currentExePath, MAX_PATH);
+        DWORD currentPid = GetCurrentProcessId();
 
-    Log::ok("Downloading update from " + downloadUrl + "...");
-    if (downloadFile(downloadUrl, newExePath)) {
-        Log::ok("Download complete! Launching updater and restarting...");
-        std::string cmdArgs = "/c timeout /t 1 /nobreak >nul && copy /y \"" + newExePath + "\" \"" + std::string(currentExePath) + "\" && del \"" + newExePath + "\" && start \"\" \"" + std::string(currentExePath) + "\"";
-        ShellExecuteA(NULL, "runas", "cmd.exe", cmdArgs.c_str(), NULL, SW_HIDE);
-        exit(0);
-    } else {
-        Log::err("Failed to download update file!");
-        ShellExecuteA(NULL, "open", "https://github.com/ewinnery/webRPC/releases/tag/v2", NULL, NULL, SW_SHOWNORMAL);
-    }
+        Log::ok("Downloading update from " + downloadUrl + "...");
+
+        bool ok = downloadFileWithProgress(downloadUrl, newExePath, [](size_t downloaded, size_t total) {
+            if (g_menuPtr) {
+                g_menuPtr->updateProgress(downloaded, total);
+            }
+        });
+
+        if (ok) {
+            Log::ok("Download complete! Launching updater and restarting...");
+            std::string cmdArgs = "--install-update \"" + std::string(currentExePath) + "\" " + std::to_string(currentPid);
+            ShellExecuteA(NULL, "open", newExePath.c_str(), cmdArgs.c_str(), NULL, SW_SHOWNORMAL);
+            exit(0);
+        } else {
+            Log::err("Failed to download update file!");
+            ShellExecuteA(NULL, "open", "https://github.com/ewinnery/webRPC/releases/tag/v2", NULL, NULL, SW_SHOWNORMAL);
+        }
+    }).detach();
 }
-
-#include "../include/version.hpp"
-
-static ConsoleMenu* g_menuPtr = nullptr;
 
 void postponeUpdate(const std::string& postponeFile) {
     long long now = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -177,6 +201,33 @@ void checkForUpdatesAsync() {
 #endif
 
 int main(int argc, char* argv[]) {
+    if (argc >= 3 && std::string(argv[1]) == "--install-update") {
+        std::string targetPath = argv[2];
+        DWORD oldPid = argc >= 4 ? (DWORD)std::stoul(argv[3]) : 0;
+        
+        if (oldPid > 0) {
+            HANDLE hProc = OpenProcess(SYNCHRONIZE | PROCESS_TERMINATE, FALSE, oldPid);
+            if (hProc) {
+                WaitForSingleObject(hProc, 4000);
+                CloseHandle(hProc);
+            }
+        }
+        
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        
+        char selfPath[MAX_PATH] = {0};
+        GetModuleFileNameA(NULL, selfPath, MAX_PATH);
+        
+        BOOL ok = CopyFileA(selfPath, targetPath.c_str(), FALSE);
+        if (!ok) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            CopyFileA(selfPath, targetPath.c_str(), FALSE);
+        }
+        
+        ShellExecuteA(NULL, "open", targetPath.c_str(), NULL, NULL, SW_SHOWNORMAL);
+        return 0;
+    }
+
     std::signal(SIGINT, signalHandler);
     std::signal(SIGTERM, signalHandler);
     

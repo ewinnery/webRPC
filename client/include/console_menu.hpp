@@ -43,11 +43,11 @@ enum Attr : WORD {
     A_SEL_CYAN  = 0x1B,
 };
 
-enum class View { MAIN, LOGS, UPDATE };
+enum class View { MAIN, LOGS, UPDATE, DOWNLOADING };
 
 class ConsoleMenu {
 public:
-    ConsoleMenu() : selected_(0), running_(false), hBack_(INVALID_HANDLE_VALUE), view_(View::MAIN), logScroll_(0), updateSel_(0) {}
+    ConsoleMenu() : selected_(0), running_(false), hBack_(INVALID_HANDLE_VALUE), view_(View::MAIN), logScroll_(0), updateSel_(0), downloadedBytes_(0), totalBytes_(0) {}
 
     ~ConsoleMenu() {
         stop();
@@ -71,6 +71,14 @@ public:
         postponeFn_ = postponeFn;
         updateSel_ = 0;
         view_ = View::UPDATE;
+    }
+
+    void updateProgress(size_t downloadedBytes, size_t totalBytes) {
+        std::lock_guard<std::mutex> lock(renderMutex_);
+        downloadedBytes_ = downloadedBytes;
+        totalBytes_ = totalBytes;
+        view_ = View::DOWNLOADING;
+        renderInternal();
     }
 
     void init() {
@@ -115,7 +123,7 @@ public:
                             handleLogInput(vk, ch);
                         } else if (view_ == View::UPDATE) {
                             handleUpdateInput(vk, ch);
-                        } else {
+                        } else if (view_ == View::MAIN) {
                             handleMenuInput(vk, ch);
                         }
                         render();
@@ -137,25 +145,7 @@ public:
 
     void render() {
         std::lock_guard<std::mutex> lock(renderMutex_);
-
-        CHAR_INFO blank;
-        blank.Char.UnicodeChar = L' ';
-        blank.Attributes = A_RESET;
-        std::fill(buf_.begin(), buf_.end(), blank);
-
-        if (view_ == View::LOGS) {
-            renderLogView();
-        } else if (view_ == View::UPDATE) {
-            renderUpdateView();
-        } else {
-            renderMainView();
-        }
-
-        COORD bufSize = {(SHORT)width_, (SHORT)height_};
-        COORD bufCoord = {0, 0};
-        SMALL_RECT writeRegion = {0, 0, (SHORT)(width_ - 1), (SHORT)(height_ - 1)};
-        WriteConsoleOutputW(hBack_, buf_.data(), bufSize, bufCoord, &writeRegion);
-        SetConsoleActiveScreenBuffer(hBack_);
+        renderInternal();
     }
 
     void captureStartPosition() {}
@@ -188,6 +178,32 @@ private:
     std::function<void()> autoUpdateFn_;
     std::function<void()> postponeFn_;
     int updateSel_ = 0;
+
+    size_t downloadedBytes_ = 0;
+    size_t totalBytes_ = 0;
+
+    void renderInternal() {
+        CHAR_INFO blank;
+        blank.Char.UnicodeChar = L' ';
+        blank.Attributes = A_RESET;
+        std::fill(buf_.begin(), buf_.end(), blank);
+
+        if (view_ == View::LOGS) {
+            renderLogView();
+        } else if (view_ == View::UPDATE) {
+            renderUpdateView();
+        } else if (view_ == View::DOWNLOADING) {
+            renderDownloadView();
+        } else {
+            renderMainView();
+        }
+
+        COORD bufSize = {(SHORT)width_, (SHORT)height_};
+        COORD bufCoord = {0, 0};
+        SMALL_RECT writeRegion = {0, 0, (SHORT)(width_ - 1), (SHORT)(height_ - 1)};
+        WriteConsoleOutputW(hBack_, buf_.data(), bufSize, bufCoord, &writeRegion);
+        SetConsoleActiveScreenBuffer(hBack_);
+    }
 
     void setBuf(int row, int col, wchar_t ch, WORD attr) {
         if (row < 0 || row >= height_ || col < 0 || col >= width_) return;
@@ -376,45 +392,50 @@ private:
     }
 
     void renderUpdateView() {
-        int startRow = (height_ - 14) / 2;
+        int startRow = (height_ - 11) / 2;
         if (startRow < 0) startRow = 0;
 
         int boxW = 58;
         int startCol = (width_ - boxW) / 2;
         if (startCol < 0) startCol = 0;
 
-        // Top border
+        // Line 0: Top border
         setBuf(startRow, startCol, L'\u250C', A_CYAN);
         for (int x = 1; x < boxW - 1; ++x) setBuf(startRow, startCol + x, L'\u2500', A_CYAN);
         setBuf(startRow, startCol + boxW - 1, L'\u2510', A_CYAN);
 
-        // Title
+        // Line 1: Title
         int r = startRow + 1;
         for (int x = 0; x < boxW; ++x) setBuf(r, startCol + x, L' ', A_SEL_BG);
-        putStr(r, startCol + (boxW - 28) / 2, L"\u26A1 WEBRPC UPDATE AVAILABLE \u26A1", A_SEL_CYAN);
+        setBuf(r, startCol, L'\u2502', A_CYAN);
+        setBuf(r, startCol + boxW - 1, L'\u2502', A_CYAN);
+        putStr(r, startCol + (boxW - 23) / 2, L"WEBRPC UPDATE AVAILABLE", A_SEL_CYAN);
 
-        // Subtitle
+        // Line 2: Subtitle
         r++;
         std::string sub = "New Version v" + remoteVer_ + " is ready to install";
         std::wstring wsub(sub.begin(), sub.end());
         for (int x = 0; x < boxW; ++x) setBuf(r, startCol + x, L' ', A_SEL_BG);
+        setBuf(r, startCol, L'\u2502', A_CYAN);
+        setBuf(r, startCol + boxW - 1, L'\u2502', A_CYAN);
         putStr(r, startCol + (boxW - (int)wsub.size()) / 2, wsub.c_str(), A_SEL_LABEL);
 
-        // Separator line
+        // Line 3: Separator line
         r++;
         setBuf(r, startCol, L'\u251C', A_CYAN);
         for (int x = 1; x < boxW - 1; ++x) setBuf(r, startCol + x, L'\u2500', A_CYAN);
         setBuf(r, startCol + boxW - 1, L'\u2524', A_CYAN);
 
+        // Line 4: Blank line
         r++;
-        for (int x = 0; x < boxW; ++x) setBuf(r, startCol + x, L' ', A_RESET);
+        for (int x = 1; x < boxW - 1; ++x) setBuf(r, startCol + x, L' ', A_RESET);
         setBuf(r, startCol, L'\u2502', A_CYAN);
         setBuf(r, startCol + boxW - 1, L'\u2502', A_CYAN);
 
         const wchar_t* updateItems[] = {
-            L"[1] Update Auto   (Auto-download & restart client)",
-            L"[2] Update Manual (Open GitHub Releases page)",
-            L"[3] Remind Later  (Postpone update for 24 hours)"
+            L"[1] Update Auto   (Auto-download & restart)          ",
+            L"[2] Update Manual (Open GitHub Releases page)        ",
+            L"[3] Remind Later  (Postpone update 24 hours)         "
         };
 
         for (int i = 0; i < 3; ++i) {
@@ -430,16 +451,110 @@ private:
             putStr(r, startCol + 5, updateItems[i], sel ? A_SEL_LABEL : A_WHITE);
         }
 
-        r++;
-        for (int x = 0; x < boxW; ++x) setBuf(r, startCol + x, L' ', A_RESET);
-        setBuf(r, startCol, L'\u2502', A_CYAN);
-        setBuf(r, startCol + boxW - 1, L'\u2502', A_CYAN);
-
+        // Line 8: Blank line
         r++;
         for (int x = 1; x < boxW - 1; ++x) setBuf(r, startCol + x, L' ', A_RESET);
         setBuf(r, startCol, L'\u2502', A_CYAN);
         setBuf(r, startCol + boxW - 1, L'\u2502', A_CYAN);
-        putStr(r, startCol + 4, L"\u2191\u2193 / W/S to move  |  Enter to select  |  Q back", A_GRAY);
+
+        // Line 9: Controls
+        r++;
+        for (int x = 1; x < boxW - 1; ++x) setBuf(r, startCol + x, L' ', A_RESET);
+        setBuf(r, startCol, L'\u2502', A_CYAN);
+        setBuf(r, startCol + boxW - 1, L'\u2502', A_CYAN);
+        putStr(r, startCol + (boxW - 46) / 2, L"\u2191\u2193 or W/S to move  |  Enter to select  |  Q back", A_GRAY);
+
+        // Line 10: Bottom border
+        r++;
+        setBuf(r, startCol, L'\u2514', A_CYAN);
+        for (int x = 1; x < boxW - 1; ++x) setBuf(r, startCol + x, L'\u2500', A_CYAN);
+        setBuf(r, startCol + boxW - 1, L'\u2518', A_CYAN);
+    }
+
+    void renderDownloadView() {
+        int startRow = (height_ - 9) / 2;
+        if (startRow < 0) startRow = 0;
+
+        int boxW = 58;
+        int startCol = (width_ - boxW) / 2;
+        if (startCol < 0) startCol = 0;
+
+        // Top border
+        setBuf(startRow, startCol, L'\u250C', A_CYAN);
+        for (int x = 1; x < boxW - 1; ++x) setBuf(startRow, startCol + x, L'\u2500', A_CYAN);
+        setBuf(startRow, startCol + boxW - 1, L'\u2510', A_CYAN);
+
+        // Title
+        int r = startRow + 1;
+        for (int x = 0; x < boxW; ++x) setBuf(r, startCol + x, L' ', A_SEL_BG);
+        setBuf(r, startCol, L'\u2502', A_CYAN);
+        setBuf(r, startCol + boxW - 1, L'\u2502', A_CYAN);
+        putStr(r, startCol + (boxW - 25) / 2, L"DOWNLOADING WEBRPC UPDATE", A_SEL_CYAN);
+
+        // Subtitle
+        r++;
+        std::string sub = "Downloading Version v" + remoteVer_;
+        std::wstring wsub(sub.begin(), sub.end());
+        for (int x = 0; x < boxW; ++x) setBuf(r, startCol + x, L' ', A_SEL_BG);
+        setBuf(r, startCol, L'\u2502', A_CYAN);
+        setBuf(r, startCol + boxW - 1, L'\u2502', A_CYAN);
+        putStr(r, startCol + (boxW - (int)wsub.size()) / 2, wsub.c_str(), A_SEL_LABEL);
+
+        // Separator
+        r++;
+        setBuf(r, startCol, L'\u251C', A_CYAN);
+        for (int x = 1; x < boxW - 1; ++x) setBuf(r, startCol + x, L'\u2500', A_CYAN);
+        setBuf(r, startCol + boxW - 1, L'\u2524', A_CYAN);
+
+        // Blank
+        r++;
+        for (int x = 1; x < boxW - 1; ++x) setBuf(r, startCol + x, L' ', A_RESET);
+        setBuf(r, startCol, L'\u2502', A_CYAN);
+        setBuf(r, startCol + boxW - 1, L'\u2502', A_CYAN);
+
+        // Download Stats text
+        r++;
+        for (int x = 1; x < boxW - 1; ++x) setBuf(r, startCol + x, L' ', A_RESET);
+        setBuf(r, startCol, L'\u2502', A_CYAN);
+        setBuf(r, startCol + boxW - 1, L'\u2502', A_CYAN);
+        
+        double dlMB = (double)downloadedBytes_ / (1024.0 * 1024.0);
+        double totMB = (double)totalBytes_ / (1024.0 * 1024.0);
+        wchar_t statsBuf[64];
+        if (totalBytes_ > 0) {
+            swprintf_s(statsBuf, L"Downloading: %.2f MB / %.2f MB", dlMB, totMB);
+        } else {
+            swprintf_s(statsBuf, L"Downloading: %.2f MB", dlMB);
+        }
+        putStr(r, startCol + 4, statsBuf, A_WHITE);
+
+        // Progress bar
+        r++;
+        for (int x = 1; x < boxW - 1; ++x) setBuf(r, startCol + x, L' ', A_RESET);
+        setBuf(r, startCol, L'\u2502', A_CYAN);
+        setBuf(r, startCol + boxW - 1, L'\u2502', A_CYAN);
+
+        int barWidth = 36;
+        int pct = (totalBytes_ > 0) ? (int)((downloadedBytes_ * 100) / totalBytes_) : 0;
+        if (pct > 100) pct = 100;
+        int filled = (pct * barWidth) / 100;
+
+        putStr(r, startCol + 4, L"[", A_GRAY);
+        for (int i = 0; i < barWidth; ++i) {
+            if (i < filled) setBuf(r, startCol + 5 + i, L'\u2588', A_CYAN);
+            else            setBuf(r, startCol + 5 + i, L'\u2591', A_GRAY);
+        }
+        putStr(r, startCol + 5 + barWidth, L"] ", A_GRAY);
+
+        wchar_t pctBuf[16];
+        swprintf_s(pctBuf, L"%3d%%", pct);
+        putStr(r, startCol + 7 + barWidth, pctBuf, A_YELLOW);
+
+        // Blank
+        r++;
+        for (int x = 1; x < boxW - 1; ++x) setBuf(r, startCol + x, L' ', A_RESET);
+        setBuf(r, startCol, L'\u2502', A_CYAN);
+        setBuf(r, startCol + boxW - 1, L'\u2502', A_CYAN);
 
         // Bottom border
         r++;
@@ -511,7 +626,6 @@ private:
 
     void executeUpdateSelected() {
         if (updateSel_ == 0) {
-            view_ = View::MAIN;
             if (autoUpdateFn_) autoUpdateFn_();
         } else if (updateSel_ == 1) {
             view_ = View::MAIN;
