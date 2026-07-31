@@ -6,11 +6,30 @@ document.addEventListener('DOMContentLoaded', () => {
   loadTheme();
   loadSettings();
   checkStatus();
+  checkUpdateBanner();
   setupTabs();
   setupEvents();
   setupTheme();
   loadActivity();
 });
+
+function checkUpdateBanner() {
+  chrome.storage.local.get(['updateAvailable', 'remoteVersion', 'downloadUrl'], (data) => {
+    const banner = document.getElementById('updateBanner');
+    if (banner) {
+      if (data.updateAvailable) {
+        banner.style.display = 'block';
+        const verEl = document.getElementById('updateVer');
+        if (verEl && data.remoteVersion) verEl.textContent = data.remoteVersion;
+        banner.onclick = () => {
+          chrome.tabs.create({ url: data.downloadUrl || 'https://github.com/ewinnery/webRPC/releases/tag/v2' });
+        };
+      } else {
+        banner.style.display = 'none';
+      }
+    }
+  });
+}
 
 function loadSettings() {
   chrome.runtime.sendMessage({ action: 'getSettings' }, (r) => {

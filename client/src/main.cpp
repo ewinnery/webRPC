@@ -66,13 +66,13 @@ void checkForUpdatesAsync() {
                     size_t q2 = jsonStr.find('"', q1 + 1);
                     if (q1 != std::string::npos && q2 != std::string::npos) {
                         std::string remoteVer = jsonStr.substr(q1 + 1, q2 - q1 - 1);
-                        std::string currentVer = "1.0.1";
+                        std::string currentVer = "1.0.0"; // Simulated 1.0.0 for test update trigger!
                         if (!remoteVer.empty() && remoteVer != currentVer) {
                             Log::ok("========================================");
                             Log::ok("NEW WEBRPC UPDATE AVAILABLE: " + remoteVer);
-                            Log::ok("Opening GitHub Releases page...");
+                            Log::ok("Opening GitHub Release v2 page...");
                             Log::ok("========================================");
-                            ShellExecuteA(NULL, "open", "https://github.com/ewinnery/webRPC/releases", NULL, NULL, SW_SHOWNORMAL);
+                            ShellExecuteA(NULL, "open", "https://github.com/ewinnery/webRPC/releases/tag/v2", NULL, NULL, SW_SHOWNORMAL);
                         }
                     }
                 }

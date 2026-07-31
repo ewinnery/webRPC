@@ -294,3 +294,69 @@ chrome.tabs.onRemoved.addListener(() => {
     if (!tabs.length) { sendToClient({ type: 'clearActivity' }); currentActivity = null; lastSentJson = ''; }
   });
 });
+
+async function checkExtensionUpdates() {
+  try {
+    const res = await fetch('https://raw.githubusercontent.com/ewinnery/webRPC/main/version.json?t=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    
+    const manifestVer = chrome.runtime.getManifest().version;
+    const currentVer = "1.0.0"; // Simulated 1.0.0 for instant update prompt test!
+    const remoteVer = data.extension_version || data.version || "1.0.1";
+    
+    if (remoteVer && isNewerVersion(remoteVer, currentVer)) {
+      console.log(`[WebRPC Update] New version available: ${remoteVer} (current: ${currentVer})`);
+      
+      chrome.storage.local.set({
+        updateAvailable: true,
+        remoteVersion: remoteVer,
+        currentVersion: currentVer,
+        downloadUrl: data.download_url || 'https://github.com/ewinnery/webRPC/releases/tag/v2',
+        exeUrl: data.exe_download_url || 'https://github.com/ewinnery/webRPC/releases/download/v2/webRPC.exe',
+        crxUrl: data.crx_download_url || 'https://github.com/ewinnery/webRPC/releases/download/v2/extension.crx'
+      });
+
+      chrome.action.setBadgeText({ text: 'NEW' });
+      chrome.action.setBadgeBackgroundColor({ color: '#5865F2' });
+
+      if (chrome.notifications) {
+        chrome.notifications.create('webrpc-update-prompt', {
+          type: 'basic',
+          iconUrl: 'icons/icon-128.png',
+          title: '⚡ WebRPC Update Available!',
+          message: `Version ${remoteVer} is available. Click to download from GitHub!`,
+          priority: 2
+        });
+      }
+    } else {
+      chrome.storage.local.set({ updateAvailable: false });
+      chrome.action.setBadgeText({ text: '' });
+    }
+  } catch (e) {
+    console.error('[WebRPC Update Check Failed]', e);
+  }
+}
+
+function isNewerVersion(remote, current) {
+  const r = remote.split('.').map(Number);
+  const c = current.split('.').map(Number);
+  for (let i = 0; i < Math.max(r.length, c.length); i++) {
+    const rv = r[i] || 0;
+    const cv = c[i] || 0;
+    if (rv > cv) return true;
+    if (rv < cv) return false;
+  }
+  return false;
+}
+
+if (chrome.notifications) {
+  chrome.notifications.onClicked.addListener((id) => {
+    if (id === 'webrpc-update-prompt') {
+      chrome.tabs.create({ url: 'https://github.com/ewinnery/webRPC/releases/tag/v2' });
+    }
+  });
+}
+
+checkExtensionUpdates();
+setInterval(checkExtensionUpdates, 15 * 60 * 1000);
