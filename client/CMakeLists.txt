@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(WIN32)
     set(PLATFORM_SOURCES src/platform/windows.cpp src/tray_manager.cpp)
-    set(PLATFORM_LIBS ws2_32 shell32 user32 advapi32)
+    set(PLATFORM_LIBS ws2_32 shell32 user32 advapi32 wininet)
 elseif(APPLE)
     set(PLATFORM_SOURCES src/platform/macos.cpp)
     set(PLATFORM_LIBS "-framework CoreFoundation")

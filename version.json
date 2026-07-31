@@ -1,0 +1,6 @@
+{
+  "version": "1.0.1",
+  "name": "WebRPC v1.0.1",
+  "download_url": "https://github.com/ewinnery/webRPC/releases",
+  "changelog": "Added GitHub raw CDN logo fallback, version checker, universal icon parser, and Discord IPC payload validation."
+}

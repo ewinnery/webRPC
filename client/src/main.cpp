@@ -44,6 +44,46 @@ BOOL WINAPI consoleCtrlHandler(DWORD event) {
 }
 #endif
 
+#ifdef _WIN32
+#include <wininet.h>
+#pragma comment(lib, "wininet.lib")
+
+void checkForUpdatesAsync() {
+    std::thread([]() {
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+        HINTERNET hNet = InternetOpenA("WebRPC-UpdateChecker", INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
+        if (!hNet) return;
+        
+        HINTERNET hUrl = InternetOpenUrlA(hNet, "https://raw.githubusercontent.com/ewinnery/webRPC/main/version.json", NULL, 0, INTERNET_FLAG_RELOAD | INTERNET_FLAG_NO_CACHE_WRITE, 0);
+        if (hUrl) {
+            char buffer[1024] = {0};
+            DWORD bytesRead = 0;
+            if (InternetReadFile(hUrl, buffer, sizeof(buffer) - 1, &bytesRead) && bytesRead > 0) {
+                std::string jsonStr(buffer, bytesRead);
+                size_t vPos = jsonStr.find("\"version\":");
+                if (vPos != std::string::npos) {
+                    size_t q1 = jsonStr.find('"', vPos + 10);
+                    size_t q2 = jsonStr.find('"', q1 + 1);
+                    if (q1 != std::string::npos && q2 != std::string::npos) {
+                        std::string remoteVer = jsonStr.substr(q1 + 1, q2 - q1 - 1);
+                        std::string currentVer = "1.0.1";
+                        if (!remoteVer.empty() && remoteVer != currentVer) {
+                            Log::ok("========================================");
+                            Log::ok("NEW WEBRPC UPDATE AVAILABLE: " + remoteVer);
+                            Log::ok("Opening GitHub Releases page...");
+                            Log::ok("========================================");
+                            ShellExecuteA(NULL, "open", "https://github.com/ewinnery/webRPC/releases", NULL, NULL, SW_SHOWNORMAL);
+                        }
+                    }
+                }
+            }
+            InternetCloseHandle(hUrl);
+        }
+        InternetCloseHandle(hNet);
+    }).detach();
+}
+#endif
+
 int main(int argc, char* argv[]) {
     std::signal(SIGINT, signalHandler);
     std::signal(SIGTERM, signalHandler);
@@ -60,6 +100,7 @@ int main(int argc, char* argv[]) {
     if (startMinimized) {
         ShowWindow(GetConsoleWindow(), SW_HIDE);
     }
+    checkForUpdatesAsync();
 #endif
     
     Log::init();

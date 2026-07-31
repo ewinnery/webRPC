@@ -87,8 +87,9 @@ void DiscordManager::setActivity(const ActivityData& activity) {
     for (auto &c : lKeyLower) c = ::tolower(c);
     
     if (largeKey.empty() || largeKey.find("data:") == 0 || 
+        largeKey == "webrpc" || largeKey == "icon_globe" ||
         lKeyLower.rfind(".ico") != std::string::npos || lKeyLower.find(".ico?") != std::string::npos) {
-        largeKey = "icon_globe";
+        largeKey = "https://raw.githubusercontent.com/ewinnery/webRPC/main/extension/icons/icon-512.png";
     }
     presence.setLargeImageKey(largeKey);
     presence.setLargeImageText(activity.largeText.empty() ? "WebRPC" : activity.largeText);
