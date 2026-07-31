@@ -82,7 +82,12 @@ void DiscordManager::setActivity(const ActivityData& activity) {
     if (largeKey.find('?') != std::string::npos) {
         largeKey = largeKey.substr(0, largeKey.find('?'));
     }
-    if (largeKey.empty() || largeKey.find("data:") == 0) {
+    
+    std::string lKeyLower = largeKey;
+    for (auto &c : lKeyLower) c = ::tolower(c);
+    
+    if (largeKey.empty() || largeKey.find("data:") == 0 || 
+        lKeyLower.rfind(".ico") != std::string::npos || lKeyLower.find(".ico?") != std::string::npos) {
         largeKey = "webrpc";
     }
     presence.setLargeImageKey(largeKey);

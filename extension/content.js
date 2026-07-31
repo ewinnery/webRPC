@@ -296,9 +296,14 @@ async function bruteForceCommonPaths() {
 }
 
 let cachedFaviconUrl = null;
+let cachedFaviconHref = null;
 
 async function extractFavicon() {
-  if (cachedFaviconUrl) return { url: cachedFaviconUrl, score: 9999, source: "cache" };
+  if (cachedFaviconUrl && cachedFaviconHref === location.href) {
+    return { url: cachedFaviconUrl, score: 9999, source: "cache" };
+  }
+  cachedFaviconHref = location.href;
+  cachedFaviconUrl = null;
 
   await waitForHeadStable(1500, 300);
 
@@ -320,6 +325,8 @@ async function extractFavicon() {
   const sorted = [...byUrl.values()].sort((a, b) => b.score - a.score);
 
   for (const candidate of sorted) {
+    const lUrl = candidate.url.toLowerCase();
+    if (lUrl.endsWith('.ico') || lUrl.includes('.ico?')) continue;
     const check = await checkImage(candidate.url, 2000);
     if (check && check.width > 0) {
       cachedFaviconUrl = candidate.url;
@@ -327,24 +334,31 @@ async function extractFavicon() {
     }
   }
 
-  const fallbackUrl = location.origin + "/favicon.ico";
-  cachedFaviconUrl = fallbackUrl;
-  return { url: fallbackUrl, score: 0, source: "last-resort" };
+  cachedFaviconUrl = 'webrpc';
+  return { url: 'webrpc', score: 0, source: "last-resort" };
 }
 
 function getFavicon() {
-  if (cachedFaviconUrl) return cachedFaviconUrl;
+  if (cachedFaviconUrl && cachedFaviconHref === location.href) return cachedFaviconUrl;
+  cachedFaviconHref = location.href;
   const links = collectFromLinks();
-  if (links.length > 0) {
-    cachedFaviconUrl = links[0].url;
-    return cachedFaviconUrl;
+  for (const link of links) {
+    const lUrl = link.url.toLowerCase();
+    if (!lUrl.endsWith('.ico') && !lUrl.includes('.ico?')) {
+      cachedFaviconUrl = link.url;
+      return cachedFaviconUrl;
+    }
   }
   const metas = collectFromMeta();
-  if (metas.length > 0) {
-    cachedFaviconUrl = metas[0].url;
-    return cachedFaviconUrl;
+  for (const meta of metas) {
+    const lUrl = meta.url.toLowerCase();
+    if (!lUrl.endsWith('.ico') && !lUrl.includes('.ico?')) {
+      cachedFaviconUrl = meta.url;
+      return cachedFaviconUrl;
+    }
   }
-  return location.origin + "/favicon.ico";
+  cachedFaviconUrl = 'webrpc';
+  return 'webrpc';
 }
 
 extractFavicon().then(result => {
