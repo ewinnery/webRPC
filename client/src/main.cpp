@@ -93,6 +93,20 @@ void performAutoUpdate(const std::string& downloadUrl) {
     }
 }
 
+#include "../include/version.hpp"
+
+static ConsoleMenu* g_menuPtr = nullptr;
+
+void postponeUpdate(const std::string& postponeFile) {
+    long long now = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    FILE* pfp = fopen(postponeFile.c_str(), "wb");
+    if (pfp) {
+        fprintf(pfp, "%lld", now);
+        fclose(pfp);
+    }
+    Log::info("Update postponed for 24 hours.");
+}
+
 void checkForUpdatesAsync() {
     std::thread([]() {
         std::this_thread::sleep_for(std::chrono::seconds(2));
@@ -128,7 +142,7 @@ void checkForUpdatesAsync() {
                     size_t q2 = jsonStr.find('"', q1 + 1);
                     if (q1 != std::string::npos && q2 != std::string::npos) {
                         std::string remoteVer = jsonStr.substr(q1 + 1, q2 - q1 - 1);
-                        std::string currentVer = "1.0.0"; // Simulated 1.0.0 for test update trigger!
+                        std::string currentVer = WEBRPC_VERSION; // Shared version constant (currently 1.0.0 for test trigger)
                         if (!remoteVer.empty() && remoteVer != currentVer) {
                             Log::ok("========================================");
                             Log::ok("NEW WEBRPC UPDATE AVAILABLE: " + remoteVer);
@@ -144,24 +158,12 @@ void checkForUpdatesAsync() {
                                 }
                             }
                             
-                            std::string msg = "A new version of WebRPC (v" + remoteVer + ") is available!\n\n"
-                                              "• Yes = Automatic Update (Auto download & restart)\n"
-                                              "• No = Manual Update (Open GitHub Releases page)\n"
-                                              "• Cancel = Remind Later (Postpone for 24 hours)";
+                            std::string releaseUrl = "https://github.com/ewinnery/webRPC/releases/tag/v2";
                             
-                            int res = MessageBoxA(NULL, msg.c_str(), "WebRPC Update Available", MB_YESNOCANCEL | MB_ICONINFORMATION | MB_TOPMOST);
-                            if (res == IDYES) {
-                                performAutoUpdate(exeUrl);
-                            } else if (res == IDNO) {
-                                ShellExecuteA(NULL, "open", "https://github.com/ewinnery/webRPC/releases/tag/v2", NULL, NULL, SW_SHOWNORMAL);
-                            } else if (res == IDCANCEL) {
-                                long long now = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-                                FILE* pfp = fopen(postponeFile.c_str(), "wb");
-                                if (pfp) {
-                                    fprintf(pfp, "%lld", now);
-                                    fclose(pfp);
-                                }
-                                Log::info("Update postponed for 24 hours.");
+                            if (g_menuPtr) {
+                                g_menuPtr->triggerUpdateView(remoteVer, exeUrl, releaseUrl,
+                                    [exeUrl]() { performAutoUpdate(exeUrl); },
+                                    [postponeFile]() { postponeUpdate(postponeFile); });
                             }
                         }
                     }
@@ -305,6 +307,7 @@ int main(int argc, char* argv[]) {
     tray.showBalloon("WebRPC", "Client is running in the background");
     
     ConsoleMenu menu;
+    g_menuPtr = &menu;
     
     menu.setStatusLine([&, extensionConnected]() -> std::string {
         std::string s = "Discord: ";

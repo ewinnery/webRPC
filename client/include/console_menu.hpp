@@ -17,6 +17,7 @@
 #include <windows.h>
 
 #include "logger.hpp"
+#include "version.hpp"
 
 namespace webrpc {
 
@@ -42,11 +43,11 @@ enum Attr : WORD {
     A_SEL_CYAN  = 0x1B,
 };
 
-enum class View { MAIN, LOGS };
+enum class View { MAIN, LOGS, UPDATE };
 
 class ConsoleMenu {
 public:
-    ConsoleMenu() : selected_(0), running_(false), hBack_(INVALID_HANDLE_VALUE), view_(View::MAIN), logScroll_(0) {}
+    ConsoleMenu() : selected_(0), running_(false), hBack_(INVALID_HANDLE_VALUE), view_(View::MAIN), logScroll_(0), updateSel_(0) {}
 
     ~ConsoleMenu() {
         stop();
@@ -59,6 +60,18 @@ public:
     }
 
     void setStatusLine(std::function<std::string()> fn) { statusFn_ = fn; }
+
+    void triggerUpdateView(const std::string& remoteVer, const std::string& exeUrl, const std::string& releaseUrl,
+                           std::function<void()> autoUpdateFn, std::function<void()> postponeFn) {
+        std::lock_guard<std::mutex> lock(renderMutex_);
+        remoteVer_ = remoteVer;
+        exeUrl_ = exeUrl;
+        releaseUrl_ = releaseUrl;
+        autoUpdateFn_ = autoUpdateFn;
+        postponeFn_ = postponeFn;
+        updateSel_ = 0;
+        view_ = View::UPDATE;
+    }
 
     void init() {
         hFront_ = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -100,6 +113,8 @@ public:
 
                         if (view_ == View::LOGS) {
                             handleLogInput(vk, ch);
+                        } else if (view_ == View::UPDATE) {
+                            handleUpdateInput(vk, ch);
                         } else {
                             handleMenuInput(vk, ch);
                         }
@@ -130,6 +145,8 @@ public:
 
         if (view_ == View::LOGS) {
             renderLogView();
+        } else if (view_ == View::UPDATE) {
+            renderUpdateView();
         } else {
             renderMainView();
         }
@@ -164,6 +181,13 @@ private:
 
     View view_;
     int logScroll_;
+
+    std::string remoteVer_;
+    std::string exeUrl_;
+    std::string releaseUrl_;
+    std::function<void()> autoUpdateFn_;
+    std::function<void()> postponeFn_;
+    int updateSel_ = 0;
 
     void setBuf(int row, int col, wchar_t ch, WORD attr) {
         if (row < 0 || row >= height_ || col < 0 || col >= width_) return;
@@ -217,7 +241,9 @@ private:
 
         putStr(row, 3, L"Discord Rich Presence for Browser", A_GRAY);
         putStr(row, 37, L"  |  ", A_RESET);
-        putStr(row, 42, L"v1.0.0", A_YELLOW);
+        std::string verStr = std::string("v") + WEBRPC_VERSION;
+        std::wstring wVerStr(verStr.begin(), verStr.end());
+        putStr(row, 42, wVerStr.c_str(), A_YELLOW);
         row++;
         hLine(row, 3, 50, A_GRAY);
         row += 2;
@@ -349,6 +375,79 @@ private:
         putStr(footerRow, 2, footBuf, A_SEL_LABEL);
     }
 
+    void renderUpdateView() {
+        int startRow = (height_ - 14) / 2;
+        if (startRow < 0) startRow = 0;
+
+        int boxW = 58;
+        int startCol = (width_ - boxW) / 2;
+        if (startCol < 0) startCol = 0;
+
+        // Top border
+        setBuf(startRow, startCol, L'\u250C', A_CYAN);
+        for (int x = 1; x < boxW - 1; ++x) setBuf(startRow, startCol + x, L'\u2500', A_CYAN);
+        setBuf(startRow, startCol + boxW - 1, L'\u2510', A_CYAN);
+
+        // Title
+        int r = startRow + 1;
+        for (int x = 0; x < boxW; ++x) setBuf(r, startCol + x, L' ', A_SEL_BG);
+        putStr(r, startCol + (boxW - 28) / 2, L"\u26A1 WEBRPC UPDATE AVAILABLE \u26A1", A_SEL_CYAN);
+
+        // Subtitle
+        r++;
+        std::string sub = "New Version v" + remoteVer_ + " is ready to install";
+        std::wstring wsub(sub.begin(), sub.end());
+        for (int x = 0; x < boxW; ++x) setBuf(r, startCol + x, L' ', A_SEL_BG);
+        putStr(r, startCol + (boxW - (int)wsub.size()) / 2, wsub.c_str(), A_SEL_LABEL);
+
+        // Separator line
+        r++;
+        setBuf(r, startCol, L'\u251C', A_CYAN);
+        for (int x = 1; x < boxW - 1; ++x) setBuf(r, startCol + x, L'\u2500', A_CYAN);
+        setBuf(r, startCol + boxW - 1, L'\u2524', A_CYAN);
+
+        r++;
+        for (int x = 0; x < boxW; ++x) setBuf(r, startCol + x, L' ', A_RESET);
+        setBuf(r, startCol, L'\u2502', A_CYAN);
+        setBuf(r, startCol + boxW - 1, L'\u2502', A_CYAN);
+
+        const wchar_t* updateItems[] = {
+            L"[1] Update Auto   (Auto-download & restart client)",
+            L"[2] Update Manual (Open GitHub Releases page)",
+            L"[3] Remind Later  (Postpone update for 24 hours)"
+        };
+
+        for (int i = 0; i < 3; ++i) {
+            r++;
+            bool sel = (i == updateSel_);
+            for (int x = 1; x < boxW - 1; ++x) setBuf(r, startCol + x, L' ', sel ? A_SEL_BG : A_RESET);
+            setBuf(r, startCol, L'\u2502', A_CYAN);
+            setBuf(r, startCol + boxW - 1, L'\u2502', A_CYAN);
+
+            if (sel) putStr(r, startCol + 3, L"\u25B6 ", A_SEL_CYAN);
+            else     putStr(r, startCol + 3, L"  ", A_RESET);
+
+            putStr(r, startCol + 5, updateItems[i], sel ? A_SEL_LABEL : A_WHITE);
+        }
+
+        r++;
+        for (int x = 0; x < boxW; ++x) setBuf(r, startCol + x, L' ', A_RESET);
+        setBuf(r, startCol, L'\u2502', A_CYAN);
+        setBuf(r, startCol + boxW - 1, L'\u2502', A_CYAN);
+
+        r++;
+        for (int x = 1; x < boxW - 1; ++x) setBuf(r, startCol + x, L' ', A_RESET);
+        setBuf(r, startCol, L'\u2502', A_CYAN);
+        setBuf(r, startCol + boxW - 1, L'\u2502', A_CYAN);
+        putStr(r, startCol + 4, L"\u2191\u2193 / W/S to move  |  Enter to select  |  Q back", A_GRAY);
+
+        // Bottom border
+        r++;
+        setBuf(r, startCol, L'\u2514', A_CYAN);
+        for (int x = 1; x < boxW - 1; ++x) setBuf(r, startCol + x, L'\u2500', A_CYAN);
+        setBuf(r, startCol + boxW - 1, L'\u2518', A_CYAN);
+    }
+
     void handleMenuInput(WORD vk, wchar_t ch) {
         switch (vk) {
             case VK_UP:    moveUp(); break;
@@ -394,6 +493,35 @@ private:
         }
     }
 
+    void handleUpdateInput(WORD vk, wchar_t ch) {
+        switch (vk) {
+            case VK_UP:    updateSel_ = (updateSel_ + 2) % 3; break;
+            case VK_DOWN:  updateSel_ = (updateSel_ + 1) % 3; break;
+            case VK_RETURN: executeUpdateSelected(); break;
+            default:
+                if (ch == L'w' || ch == L'W') updateSel_ = (updateSel_ + 2) % 3;
+                else if (ch == L's' || ch == L'S') updateSel_ = (updateSel_ + 1) % 3;
+                else if (ch == L'1') { updateSel_ = 0; executeUpdateSelected(); }
+                else if (ch == L'2') { updateSel_ = 1; executeUpdateSelected(); }
+                else if (ch == L'3') { updateSel_ = 2; executeUpdateSelected(); }
+                else if (ch == L'q' || ch == L'Q' || ch == VK_ESCAPE) { view_ = View::MAIN; }
+                break;
+        }
+    }
+
+    void executeUpdateSelected() {
+        if (updateSel_ == 0) {
+            view_ = View::MAIN;
+            if (autoUpdateFn_) autoUpdateFn_();
+        } else if (updateSel_ == 1) {
+            view_ = View::MAIN;
+            ShellExecuteA(NULL, "open", releaseUrl_.c_str(), NULL, NULL, SW_SHOWNORMAL);
+        } else if (updateSel_ == 2) {
+            view_ = View::MAIN;
+            if (postponeFn_) postponeFn_();
+        }
+    }
+
     int scrollToEnd() {
         std::lock_guard<std::mutex> logLock(Log::logMutex);
         int logAreaH = height_ - 6;
@@ -426,7 +554,7 @@ private:
     }
 };
 
-} 
+}
 
-#endif 
-#endif 
+#endif
+#endif
