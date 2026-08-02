@@ -1,4 +1,10 @@
 let extensionValid = true;
+
+if (window.self !== window.top && !document.querySelector('video')) {
+  // Do not hook non-video subframes/APIs
+  return;
+}
+
 let currentTitle = document.title;
 let sendTimer = null;
 let lastVideoState = null;
@@ -1054,8 +1060,13 @@ function checkAndSendActivity() {
 
 function doSend() {
   if (!isExtensionValid()) return;
+  if (window.self !== window.top) {
+    const video = findActiveVideo();
+    if (!video) return;
+  }
   try {
     const activity = detectActivity();
+    if (window.self !== window.top && (!activity || activity.type !== 'video')) return;
     chrome.runtime.sendMessage({ action: 'updateActivity', data: activity }, (r) => {
       if (chrome.runtime.lastError) {
         const m = chrome.runtime.lastError.message || '';

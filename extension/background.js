@@ -58,11 +58,16 @@ let currentFocusedActiveTabId = null;
 function handleTabActivityUpdate(tabId, rawActivity, tab) {
   if (!rawActivity) return;
 
-  if (rawActivity.isIframe && tab) {
-    if (tab.url && !tab.url.startsWith('chrome')) {
-      rawActivity.url = tab.url;
-      try { rawActivity.state = new URL(tab.url).hostname.replace(/^www\./, ''); } catch {}
+  if (tab && tab.url && !tab.url.startsWith('chrome')) {
+    rawActivity.url = tab.url;
+    if (rawActivity.isIframe || !rawActivity.state || rawActivity.state.includes('http')) {
+      try {
+        rawActivity.state = new URL(tab.url).hostname.replace(/^www\./, '');
+      } catch {}
     }
+  }
+
+  if (rawActivity.isIframe && tab) {
     if (tab.title && (!rawActivity.details || rawActivity.details === 'Watching video' || rawActivity.details.includes('Player'))) {
       const cleanTitle = tab.title
         .replace(/^\(\d+\)\s*/, '')
