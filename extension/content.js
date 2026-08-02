@@ -1043,8 +1043,17 @@ function checkAndSendActivity() {
 
 function doSend() {
   if (!isExtensionValid()) return;
+
+  if (isIframe) {
+    const video = findActiveVideo();
+    if (!video || (video.paused && !video.currentTime)) {
+      return;
+    }
+  }
+
   try {
     const activity = detectActivity();
+    if (!activity) return;
     chrome.runtime.sendMessage({ action: 'updateActivity', data: activity }, (r) => {
       if (chrome.runtime.lastError) {
         const m = chrome.runtime.lastError.message || '';
