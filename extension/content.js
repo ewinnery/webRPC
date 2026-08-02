@@ -397,6 +397,8 @@ extractFavicon().then(result => {
     cachedFaviconUrl = result.url;
     sendActivity();
   }
+});
+
 function isAdPlaying() {
   if (document.querySelector('.ad-showing, .ad-interrupting, .video-ads .ad-preview, .ytp-ad-text, .ytp-ad-preview-text, [class*="ad-showing"]')) {
     return true;
@@ -404,28 +406,51 @@ function isAdPlaying() {
   return false;
 }
 
+function safeUrl(u, fallback) {
+  if (!u || typeof u !== 'string') return fallback || null;
+  const str = u.trim();
+  if (str.startsWith('data:') || str.startsWith('blob:') || str.startsWith('javascript:')) {
+    return fallback || null;
+  }
+  if (!str.startsWith('http://') && !str.startsWith('https://')) {
+    return fallback || null;
+  }
+  return str;
+}
+
+function cleanVideoTitle(raw) {
+  if (!raw) return 'Watching video';
+  return raw
+    .replace(/^\(\d+\)\s*/, '')
+    .replace(/\s*[-–|]\s*(Lordfilm|Лордфильм|Кинопоиск|HDRezka|Filmix|Kodik|Rutube|VK|YouTube|Vimeo|Dailymotion|Netflix|Twitch).*$/i, '')
+    .replace(/\s*смотр(еть|ите)\s+онлайн.*$/i, '')
+    .trim() || raw;
+}
+
 function findActiveVideo() {
   if (isAdPlaying()) return null;
 
   let best = null, bestScore = 0;
-  const videos = Array.from(document.querySelectorAll('video, audio'));
-
-  for (const v of videos) {
-    const isAd = v.closest('[class*="ad-player"], [class*="video-ads"], [class*="preroll"], [id*="ad-"], [class*="advert"]');
+  for (const v of document.querySelectorAll('video')) {
+    const isAd = v.closest('[class*="ad-player"], [class*="video-ads"], [class*="preroll"], [id*="ad-"], [class*="ad-container"]');
     if (isAd) continue;
 
-    const playing = !v.paused && !v.ended && (v.currentTime > 0 || v.readyState >= 1);
-    const dur = v.duration;
-    const hasDur = !isNaN(dur) && dur > 2;
+    const playing = !v.paused && !v.ended && v.currentTime > 0;
+    const w = v.videoWidth || v.clientWidth || v.offsetWidth || 0;
+    const h = v.videoHeight || v.clientHeight || v.offsetHeight || 0;
 
-    if (!playing && !hasDur) continue;
+    if (!playing) {
+      if (w > 0 && w < 100) continue;
+      if (h > 0 && h < 100) continue;
+      const dur = v.duration;
+      const hasDur = isFinite(dur) && !isNaN(dur) && dur > 3;
+      if (!hasDur && v.readyState < 1) continue;
+    }
 
-    const w = v.videoWidth || v.clientWidth || v.offsetWidth || 300;
-    const h = v.videoHeight || v.clientHeight || v.offsetHeight || 150;
-
-    let score = w * h;
-    if (playing) score += 10000000;
-    if (hasDur) score += 500000;
+    let score = (w || 300) * (h || 200);
+    if (playing) score += 2000000;
+    if (v.src && !v.src.startsWith('blob:')) score += 10000;
+    if (v.currentTime > 0) score += 50000;
 
     if (score > bestScore) {
       best = v;
@@ -437,101 +462,83 @@ function findActiveVideo() {
 
 function getVideoContext(video) {
   let title = null, author = null;
-
-  const mainTitleEl = document.querySelector(
-    'h1, .entry-title, .post-title, .film-title, .b-post__title, .movie-title, .show-title, .page-title, [class*="title"]:not(link):not(meta)'
+  const container = video.closest(
+    '[class*="player"], [class*="video"], [class*="media"], article, section, main, [role="main"]'
   );
-  if (mainTitleEl && mainTitleEl.textContent.trim()) {
-    const t = mainTitleEl.textContent.trim();
-    if (t.length > 2 && t.length < 250) title = t;
-  }
-
-  if (!title && video) {
-    const container = video.closest(
-      '[class*="player"], [class*="video"], [class*="media"], [class*="wrapper"], article, section, main, [role="main"]'
+  if (container) {
+    const titleEl = container.querySelector(
+      'h1, h2, .title, .video-title, [class*="title"]:not(link):not(meta)'
     );
-    if (container) {
-      const titleEl = container.querySelector('h1, h2, h3, .title, [class*="title"]:not(link):not(meta)');
-      if (titleEl && titleEl.textContent.trim()) {
-        const t = titleEl.textContent.trim();
-        if (t.length > 2 && t.length < 250) title = t;
-      }
+    if (titleEl) {
+      const t = titleEl.textContent.trim();
+      if (t.length > 2 && t.length < 300) title = t;
+    }
+    const authorEl = container.querySelector(
+      '.author, .channel, .uploader, [class*="author"], [class*="channel"], [class*="uploader"]'
+    );
+    if (authorEl) {
+      const a = authorEl.textContent.trim();
+      if (a.length > 1 && a.length < 100) author = a;
     }
   }
-
-  if (!title) {
-    title = document.title.replace(/^\(\d+\)\s*/, '').replace(/ - [^-]+$/, '').trim();
-  }
-
   return { title, author };
-}
-
-const isIframe = window.self !== window.top;
-
-function getTopTitle() {
-  try {
-    if (window.top && window.top.document && window.top.document.title) {
-      return window.top.document.title;
-    }
-  } catch {}
-  return document.title;
-}
-
-function getTopUrl() {
-  try {
-    if (window.top && window.top.location && window.top.location.href) {
-      return window.top.location.href;
-    }
-  } catch {}
-  return location.href;
 }
 
 function buildVideoActivity(video, url, favicon, extraTitle, extraAuthor, extraChannel) {
   const playing = !video.paused && !video.ended && video.currentTime > 0;
   const dur = video.duration;
   const cur = video.currentTime;
-  const hasDur = !isNaN(dur) && dur > 1;
 
-  const topUrl = getTopUrl();
-  const topTitle = getTopTitle();
+  const hasValidCur = isFinite(cur) && !isNaN(cur) && cur >= 0;
+  const hasValidDur = isFinite(dur) && !isNaN(dur) && dur > 1 && dur < 864000;
 
   const ctx = getVideoContext(video);
-  const videoTitle = extraTitle || ctx.title || topTitle || 'Watching video';
-  const author = extraAuthor || ctx.author || extractDomain(topUrl);
-  const platform = platformName(topUrl);
+  let videoTitle = extraTitle || ctx.title || null;
 
-  let poster = video.poster;
-  if (poster && (poster.startsWith('data:image/gif') || poster.startsWith('data:image/svg'))) {
-    poster = null;
+  if (!videoTitle || videoTitle.length < 2) {
+    videoTitle = cleanVideoTitle(document.title);
   }
-  const largeImg = poster || favicon || getFavicon();
 
-  const cleanTopTitle = topTitle ? topTitle.replace(/^\(\d+\)\s*/, '').trim() : null;
-  const finalTitle = (videoTitle && videoTitle !== 'Watching video') ? videoTitle : cleanTopTitle;
+  const author = extraAuthor || ctx.author || null;
+  const platform = platformName(url);
+
+  let posterImg = null;
+  if (video.poster && typeof video.poster === 'string') {
+    const p = video.poster.trim();
+    if (p.startsWith('http://') || p.startsWith('https://')) {
+      posterImg = p;
+    }
+  }
+
+  const baseFavicon = favicon || getFavicon();
+  const largeImg = posterImg || baseFavicon;
+  const cleanWebUrl = safeUrl(url, location.href);
 
   const result = {
     type: 'video',
     title: platform,
-    url: topUrl,
-    favicon: favicon,
-    details: finalTitle ? (playing ? finalTitle : `${finalTitle} (Paused)`) : (playing ? 'Watching video' : 'Video paused'),
-    state: author || extractDomain(topUrl),
-    largeImage: largeImg,
-    largeText: finalTitle || platform,
+    url: cleanWebUrl,
+    favicon: safeUrl(baseFavicon, getFavicon()),
+    details: videoTitle ? (playing ? videoTitle : `${videoTitle} (Paused)`) : (playing ? 'Watching video' : 'Video paused'),
+    state: author || extractDomain(cleanWebUrl),
+    largeImage: safeUrl(largeImg, getFavicon()),
+    largeText: videoTitle || platform,
     smallImage: playing ? 'icon_play' : 'icon_pause',
     smallText: playing ? 'Playing' : 'Paused',
-    videoUrl: topUrl,
-    channelUrl: extraChannel || null,
+    videoUrl: cleanWebUrl,
+    channelUrl: extraChannel ? safeUrl(extraChannel, null) : null,
     timestamps: null,
     isPlaying: playing,
-    isIframe: isIframe,
   };
 
-  if (hasDur && playing) {
-    result.timestamps = {
-      start: Math.floor(Date.now() - cur * 1000),
-      end: Math.floor(Date.now() + (dur - cur) * 1000),
-    };
+  if (playing && hasValidCur) {
+    const startTs = Math.floor(Date.now() - cur * 1000);
+    if (hasValidDur) {
+      const endTs = Math.floor(Date.now() + (dur - cur) * 1000);
+      result.timestamps = { start: startTs, end: endTs };
+    } else {
+      result.timestamps = { start: startTs };
+    }
   }
 
   return result;
@@ -1043,17 +1050,8 @@ function checkAndSendActivity() {
 
 function doSend() {
   if (!isExtensionValid()) return;
-
-  if (isIframe) {
-    const video = findActiveVideo();
-    if (!video || (video.paused && !video.currentTime)) {
-      return;
-    }
-  }
-
   try {
     const activity = detectActivity();
-    if (!activity) return;
     chrome.runtime.sendMessage({ action: 'updateActivity', data: activity }, (r) => {
       if (chrome.runtime.lastError) {
         const m = chrome.runtime.lastError.message || '';
@@ -1088,7 +1086,7 @@ function attachVideoListeners() {
   for (const v of document.querySelectorAll('video')) {
     if (v._wrpcAttached) continue;
     v._wrpcAttached = true;
-    for (const evt of ['play', 'pause', 'seeked', 'ended']) {
+    for (const evt of ['play', 'pause', 'playing', 'seeked', 'ended', 'ratechange', 'loadedmetadata']) {
       v.addEventListener(evt, () => {
         if (sendTimer) clearTimeout(sendTimer);
         doSend(); 
