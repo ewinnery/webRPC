@@ -516,7 +516,7 @@ function detectYouTube(url) {
       );
     }
     const pn = 'YouTube';
-    const rawTitle = document.title.replace(/ - YouTube$/, '').trim() || 'Browsing YouTube';
+    const rawTitle = document.title.replace(/^\(\d+\)\s*/, '').replace(/ - YouTube$/, '').trim() || 'Browsing YouTube';
     return {
       type: 'page', title: pn, url, favicon: getIcon('youtube.com'),
       details: rawTitle, state: 'youtube.com',
@@ -537,29 +537,32 @@ function detectYouTube(url) {
 
   let channel = null, channelUrl = null;
   const chEl = document.querySelector(
-    '#channel-name a, #owner a, ytd-channel-name a, .ytd-video-owner-renderer a, a.yt-simple-endpoint.yt-formatted-string'
+    '#channel-name a, #owner #channel-name a, ytd-channel-name a, .ytd-video-owner-renderer a, #upload-info #channel-name a, #text-container.ytd-channel-name a'
   );
   if (chEl) {
     channel = chEl.textContent.trim();
     if (chEl.href) channelUrl = chEl.href;
   }
 
-  const rawTitle = document.title.replace(/ - YouTube$/, '').trim() || 'Watching YouTube';
-  const favicon = getIcon('youtube.com');
-  const thumb = videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : favicon;
+  const rawTitle = document.title.replace(/^\(\d+\)\s*/, '').replace(/ - YouTube$/, '').trim() || 'Watching YouTube';
+  const thumb = videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : getIcon('youtube.com');
 
   if (video) {
     const activity = buildVideoActivity(video, url, thumb, rawTitle, channel, channelUrl);
     activity.title = isLive ? 'YouTube Live' : isShorts ? 'YouTube Shorts' : 'YouTube';
+    activity.details = rawTitle;
+    activity.state = channel || 'YouTube';
     activity.largeImage = thumb;
+    activity.largeText = rawTitle;
     activity.videoUrl = videoId ? `https://youtube.com/watch?v=${videoId}` : url;
+    activity.channelUrl = channelUrl;
     return activity;
   } else {
     return {
       type: 'video',
       title: isLive ? 'YouTube Live' : isShorts ? 'YouTube Shorts' : 'YouTube',
       url: url,
-      favicon: favicon,
+      favicon: getIcon('youtube.com'),
       details: rawTitle,
       state: channel || 'YouTube',
       largeImage: thumb,

@@ -199,13 +199,8 @@ function processActivity(activity, tab) {
 
   let largeImage = activity.largeImage;
   
-  if (!largeImage || largeImage === 'icon_globe' || largeImage === 'webrpc' || !largeImage.startsWith('http')) {
-    if (tab?.favIconUrl && tab.favIconUrl.startsWith('http')) {
-      const l = tab.favIconUrl.toLowerCase();
-      if (!l.includes('.svg') && !l.includes('.ico') && !l.includes('data:')) {
-        largeImage = tab.favIconUrl;
-      }
-    }
+  if (!largeImage || largeImage === 'icon_globe' || largeImage === 'webrpc') {
+    largeImage = getSiteFavicon(domain);
   }
 
   largeImage = sanitizeImage(largeImage, domain);
