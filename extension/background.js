@@ -58,6 +58,25 @@ let currentFocusedActiveTabId = null;
 function handleTabActivityUpdate(tabId, rawActivity, tab) {
   if (!rawActivity) return;
 
+  if (tab) {
+    if (tab.title) {
+      const cleanTitle = tab.title.replace(/^\(\d+\)\s*/, '').replace(/ - [^-]+$/, '').trim();
+      if (!rawActivity.details || rawActivity.details === 'Watching video' || rawActivity.details === 'Viewing video' || rawActivity.isIframe) {
+        const isPlaying = rawActivity.isPlaying === true || (rawActivity.smallImage && rawActivity.smallImage.includes('play'));
+        rawActivity.details = isPlaying ? cleanTitle : `${cleanTitle} (Paused)`;
+        rawActivity.largeText = cleanTitle;
+      }
+    }
+    if (tab.url) {
+      try {
+        const hostname = new URL(tab.url).hostname.replace(/^www\./, '');
+        if (!rawActivity.state || rawActivity.isIframe) {
+          rawActivity.state = hostname;
+        }
+      } catch {}
+    }
+  }
+
   const isMedia = rawActivity.type === 'video' || rawActivity.type === 'music';
   const isPlaying = rawActivity.isPlaying === true || (isMedia && rawActivity.smallImage && rawActivity.smallImage.includes('play'));
 

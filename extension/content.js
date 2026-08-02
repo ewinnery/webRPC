@@ -466,16 +466,39 @@ function getVideoContext(video) {
   return { title, author };
 }
 
+const isIframe = window.self !== window.top;
+
+function getTopTitle() {
+  try {
+    if (window.top && window.top.document && window.top.document.title) {
+      return window.top.document.title;
+    }
+  } catch {}
+  return document.title;
+}
+
+function getTopUrl() {
+  try {
+    if (window.top && window.top.location && window.top.location.href) {
+      return window.top.location.href;
+    }
+  } catch {}
+  return location.href;
+}
+
 function buildVideoActivity(video, url, favicon, extraTitle, extraAuthor, extraChannel) {
   const playing = !video.paused && !video.ended && video.currentTime > 0;
   const dur = video.duration;
   const cur = video.currentTime;
   const hasDur = !isNaN(dur) && dur > 1;
 
+  const topUrl = getTopUrl();
+  const topTitle = getTopTitle();
+
   const ctx = getVideoContext(video);
-  const videoTitle = extraTitle || ctx.title || document.title || 'Watching video';
-  const author = extraAuthor || ctx.author || extractDomain(url);
-  const platform = platformName(url);
+  const videoTitle = extraTitle || ctx.title || topTitle || 'Watching video';
+  const author = extraAuthor || ctx.author || extractDomain(topUrl);
+  const platform = platformName(topUrl);
 
   let poster = video.poster;
   if (poster && (poster.startsWith('data:image/gif') || poster.startsWith('data:image/svg'))) {
@@ -483,21 +506,25 @@ function buildVideoActivity(video, url, favicon, extraTitle, extraAuthor, extraC
   }
   const largeImg = poster || favicon || getFavicon();
 
+  const cleanTopTitle = topTitle ? topTitle.replace(/^\(\d+\)\s*/, '').trim() : null;
+  const finalTitle = (videoTitle && videoTitle !== 'Watching video') ? videoTitle : cleanTopTitle;
+
   const result = {
     type: 'video',
     title: platform,
-    url: url,
+    url: topUrl,
     favicon: favicon,
-    details: videoTitle ? (playing ? videoTitle : `${videoTitle} (Paused)`) : (playing ? 'Watching video' : 'Video paused'),
-    state: author || extractDomain(url),
+    details: finalTitle ? (playing ? finalTitle : `${finalTitle} (Paused)`) : (playing ? 'Watching video' : 'Video paused'),
+    state: author || extractDomain(topUrl),
     largeImage: largeImg,
-    largeText: videoTitle || platform,
+    largeText: finalTitle || platform,
     smallImage: playing ? 'icon_play' : 'icon_pause',
     smallText: playing ? 'Playing' : 'Paused',
-    videoUrl: url,
+    videoUrl: topUrl,
     channelUrl: extraChannel || null,
     timestamps: null,
     isPlaying: playing,
+    isIframe: isIframe,
   };
 
   if (hasDur && playing) {
