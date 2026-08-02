@@ -53,7 +53,15 @@ function saveSettings() {
 chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
   switch (req.action) {
     case 'updateActivity':
-      handleActivityUpdate(req.data, sender.tab);
+      if (sender.tab) {
+        chrome.tabs.query({ active: true, lastFocusedWindow: true }, (activeTabs) => {
+          if (activeTabs[0] && activeTabs[0].id === sender.tab.id) {
+            handleActivityUpdate(req.data, sender.tab);
+          }
+        });
+      } else {
+        handleActivityUpdate(req.data);
+      }
       sendResponse({ success: true });
       break;
     case 'getSettings':
