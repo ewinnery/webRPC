@@ -51,15 +51,63 @@ function saveSettings() {
   chrome.storage.local.set({ settings, clientPort });
 }
 
+const activeTabActivities = new Map();
+const playingMediaTabs = new Map();
+let currentFocusedActiveTabId = null;
+
+function handleTabActivityUpdate(tabId, rawActivity, tab) {
+  if (!rawActivity) return;
+
+  const isMedia = rawActivity.type === 'video' || rawActivity.type === 'music';
+  const isPlaying = rawActivity.isPlaying === true || (isMedia && rawActivity.smallImage && rawActivity.smallImage.includes('play'));
+
+  if (isMedia && isPlaying) {
+    playingMediaTabs.set(tabId, { activity: rawActivity, tab });
+  } else {
+    playingMediaTabs.delete(tabId);
+  }
+
+  chrome.tabs.query({ active: true, lastFocusedWindow: true }, (activeTabs) => {
+    const activeTab = activeTabs[0];
+    if (activeTab) {
+      currentFocusedActiveTabId = activeTab.id;
+      if (activeTab.id === tabId) {
+        activeTabActivities.set(tabId, { activity: rawActivity, tab: tab || activeTab });
+      }
+    }
+    evaluateAndDispatchActivity();
+  });
+}
+
+function evaluateAndDispatchActivity() {
+  let targetItem = null;
+
+  if (currentFocusedActiveTabId && activeTabActivities.has(currentFocusedActiveTabId)) {
+    targetItem = activeTabActivities.get(currentFocusedActiveTabId);
+  }
+
+  const activeIsMedia = targetItem?.activity && (targetItem.activity.type === 'video' || targetItem.activity.type === 'music');
+  const activeIsPlaying = targetItem?.activity && (targetItem.activity.isPlaying === true || (activeIsMedia && targetItem.activity.smallImage?.includes('play')));
+
+  if (!activeIsPlaying && playingMediaTabs.size > 0) {
+    for (const [tId, item] of playingMediaTabs) {
+      if (tId !== currentFocusedActiveTabId && item.activity) {
+        targetItem = item;
+        break;
+      }
+    }
+  }
+
+  if (targetItem && targetItem.activity) {
+    handleActivityUpdate(targetItem.activity, targetItem.tab);
+  }
+}
+
 chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
   switch (req.action) {
     case 'updateActivity':
       if (sender.tab) {
-        chrome.tabs.query({ active: true, lastFocusedWindow: true }, (activeTabs) => {
-          if (activeTabs[0] && activeTabs[0].id === sender.tab.id) {
-            handleActivityUpdate(req.data, sender.tab);
-          }
-        });
+        handleTabActivityUpdate(sender.tab.id, req.data, sender.tab);
       } else {
         handleActivityUpdate(req.data);
       }
@@ -300,13 +348,13 @@ function requestActivity(tabId, tab) {
         if (chrome.runtime.lastError) return;
         setTimeout(() => {
           chrome.tabs.sendMessage(tabId, { action: 'getActivity' }, (r2) => {
-            if (!chrome.runtime.lastError && r2?.activity) handleActivityUpdate(r2.activity, tab);
+            if (!chrome.runtime.lastError && r2?.activity) handleTabActivityUpdate(tabId, r2.activity, tab);
           });
-        }, 300);
+        }, 150);
       });
       return;
     }
-    if (r?.activity) handleActivityUpdate(r.activity, tab);
+    if (r?.activity) handleTabActivityUpdate(tabId, r.activity, tab);
   });
 }
 
@@ -317,6 +365,7 @@ chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
 });
 
 chrome.tabs.onActivated.addListener((info) => {
+  currentFocusedActiveTabId = info.tabId;
   chrome.tabs.get(info.tabId, (tab) => {
     if (chrome.runtime.lastError || !tab?.url || tab.url.startsWith('chrome://')) return;
     requestActivity(tab.id, tab);
@@ -326,14 +375,20 @@ chrome.tabs.onActivated.addListener((info) => {
 chrome.windows.onFocusChanged.addListener((wid) => {
   if (wid === chrome.windows.WINDOW_ID_NONE) return;
   chrome.tabs.query({ active: true, windowId: wid }, (tabs) => {
-    if (tabs[0]?.url && !tabs[0].url.startsWith('chrome://')) requestActivity(tabs[0].id, tabs[0]);
+    if (tabs[0]?.url && !tabs[0].url.startsWith('chrome://')) {
+      currentFocusedActiveTabId = tabs[0].id;
+      requestActivity(tabs[0].id, tabs[0]);
+    }
   });
 });
 
-chrome.tabs.onRemoved.addListener(() => {
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (!tabs.length) { sendToClient({ type: 'clearActivity' }); currentActivity = null; lastSentJson = ''; }
-  });
+chrome.tabs.onRemoved.addListener((tabId) => {
+  playingMediaTabs.delete(tabId);
+  activeTabActivities.delete(tabId);
+  if (currentFocusedActiveTabId === tabId) {
+    currentFocusedActiveTabId = null;
+  }
+  evaluateAndDispatchActivity();
 });
 
 async function checkExtensionUpdates() {

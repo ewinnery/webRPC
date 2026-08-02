@@ -472,7 +472,7 @@ function buildVideoActivity(video, url, favicon, extraTitle, extraAuthor, extraC
     title: platform,
     url: url,
     favicon: favicon,
-    details: videoTitle || 'Viewing video',
+    details: videoTitle ? (playing ? videoTitle : `${videoTitle} (Paused)`) : (playing ? 'Viewing video' : 'Video paused'),
     state: author || extractDomain(url),
     largeImage: favicon,
     largeText: videoTitle || platform,
@@ -481,6 +481,7 @@ function buildVideoActivity(video, url, favicon, extraTitle, extraAuthor, extraC
     videoUrl: url,
     channelUrl: extraChannel || null,
     timestamps: null,
+    isPlaying: playing,
   };
 
   if (hasDur && playing) {
@@ -488,10 +489,6 @@ function buildVideoActivity(video, url, favicon, extraTitle, extraAuthor, extraC
       start: Math.floor(Date.now() - cur * 1000),
       end: Math.floor(Date.now() + (dur - cur) * 1000),
     };
-  }
-
-  if (!playing && hasDur) {
-    result.details = videoTitle ? `${videoTitle} (Paused)` : 'Video paused';
   }
 
   return result;
@@ -522,7 +519,7 @@ function detectYouTube(url) {
       details: rawTitle, state: 'youtube.com',
       largeImage: getIcon('youtube.com'), largeText: rawTitle,
       smallImage: 'icon_globe', smallText: pn,
-      videoUrl: null, channelUrl: null, timestamps: null,
+      videoUrl: null, channelUrl: null, timestamps: null, isPlaying: false,
     };
   }
 
@@ -544,16 +541,24 @@ function detectYouTube(url) {
     if (chEl.href) channelUrl = chEl.href;
   }
 
-  const rawTitle = document.title.replace(/^\(\d+\)\s*/, '').replace(/ - YouTube$/, '').trim() || 'Watching YouTube';
+  let videoTitle = null;
+  const titleEl = document.querySelector(
+    'ytd-watch-metadata #title h1, #container > h1.ytd-watch-metadata, h1.ytd-video-primary-info-renderer, h1.title.ytd-video-primary-info-renderer'
+  );
+  if (titleEl && titleEl.textContent.trim()) {
+    videoTitle = titleEl.textContent.trim();
+  }
+  if (!videoTitle) {
+    videoTitle = document.title.replace(/^\(\d+\)\s*/, '').replace(/ - YouTube$/, '').trim() || 'Watching YouTube';
+  }
+
   const thumb = videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : getIcon('youtube.com');
 
   if (video) {
-    const activity = buildVideoActivity(video, url, thumb, rawTitle, channel, channelUrl);
+    const activity = buildVideoActivity(video, url, thumb, videoTitle, channel, channelUrl);
     activity.title = isLive ? 'YouTube Live' : isShorts ? 'YouTube Shorts' : 'YouTube';
-    activity.details = rawTitle;
-    activity.state = channel || 'YouTube';
     activity.largeImage = thumb;
-    activity.largeText = rawTitle;
+    activity.largeText = videoTitle;
     activity.videoUrl = videoId ? `https://youtube.com/watch?v=${videoId}` : url;
     activity.channelUrl = channelUrl;
     return activity;
@@ -563,15 +568,16 @@ function detectYouTube(url) {
       title: isLive ? 'YouTube Live' : isShorts ? 'YouTube Shorts' : 'YouTube',
       url: url,
       favicon: getIcon('youtube.com'),
-      details: rawTitle,
+      details: `${videoTitle} (Paused)`,
       state: channel || 'YouTube',
       largeImage: thumb,
-      largeText: rawTitle,
-      smallImage: 'icon_play',
-      smallText: 'YouTube',
+      largeText: videoTitle,
+      smallImage: 'icon_pause',
+      smallText: 'Paused',
       videoUrl: videoId ? `https://youtube.com/watch?v=${videoId}` : url,
       channelUrl: channelUrl,
       timestamps: null,
+      isPlaying: false,
     };
   }
 }
@@ -1043,9 +1049,17 @@ new MutationObserver(attachVideoListeners).observe(
   document.body || document.documentElement, { subtree: true, childList: true }
 );
 
-window.addEventListener('yt-navigate-finish', () => { doSend(); });
-window.addEventListener('yt-page-data-updated', () => { doSend(); });
-window.addEventListener('spfdone', () => { doSend(); });
+function onYouTubeNavigation() {
+  doSend();
+  setTimeout(doSend, 300);
+  setTimeout(doSend, 800);
+  setTimeout(doSend, 1500);
+}
+
+window.addEventListener('yt-navigate-finish', onYouTubeNavigation);
+window.addEventListener('yt-page-data-updated', onYouTubeNavigation);
+window.addEventListener('spfdone', onYouTubeNavigation);
+window.addEventListener('popstate', onYouTubeNavigation);
 
 setInterval(() => {
   if (!isExtensionValid()) return;
