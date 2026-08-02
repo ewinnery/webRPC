@@ -99,6 +99,8 @@ function applyTheme(name) {
   document.querySelectorAll('.theme-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.theme === name);
   });
+  const prefix = THEME_ICON_PREFIX[name] || 'icon';
+  chrome.storage.local.set({ theme: name, iconPrefix: prefix });
 }
 
 function setupTheme() {

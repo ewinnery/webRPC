@@ -18,31 +18,32 @@ let settings = { ...DEFAULT_SETTINGS };
 let iconPrefix = 'icon'; 
 
 function loadSettings() {
-  chrome.storage.local.get(['settings', 'clientPort', 'iconPrefix'], (r) => {
+  chrome.storage.local.get(['settings', 'clientPort', 'iconPrefix', 'theme'], (r) => {
     if (r.settings) settings = { ...DEFAULT_SETTINGS, ...r.settings };
     if (r.clientPort) clientPort = r.clientPort;
-    if (r.iconPrefix) iconPrefix = r.iconPrefix;
+    const THEME_PREFIX = { dark: 'icon', neutral: 'bicon', light: 'wicon', discord: 'bicon' };
+    if (r.iconPrefix) {
+      iconPrefix = r.iconPrefix;
+    } else if (r.theme) {
+      iconPrefix = THEME_PREFIX[r.theme] || 'icon';
+    }
     connectWS();
   });
 }
 loadSettings();
 
 chrome.storage.onChanged.addListener((changes) => {
-  if (changes.iconPrefix) {
-    iconPrefix = changes.iconPrefix.newValue || 'icon';
-    
-    lastSentJson = '';
-    if (currentActivity) {
-      
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (!tabs[0]) return;
-        chrome.tabs.sendMessage(tabs[0].id, { action: 'getActivity' }, (r) => {
-          if (!chrome.runtime.lastError && r?.activity) {
-            processActivity(r.activity);
-          }
-        });
-      });
+  if (changes.iconPrefix || changes.theme) {
+    const THEME_PREFIX = { dark: 'icon', neutral: 'bicon', light: 'wicon', discord: 'bicon' };
+    if (changes.iconPrefix?.newValue) {
+      iconPrefix = changes.iconPrefix.newValue;
+    } else if (changes.theme?.newValue) {
+      iconPrefix = THEME_PREFIX[changes.theme.newValue] || 'icon';
     }
+    lastSentJson = '';
+    chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
+      if (tabs[0]?.id) requestActivity(tabs[0].id, tabs[0]);
+    });
   }
 });
 
