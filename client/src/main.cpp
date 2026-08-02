@@ -287,17 +287,12 @@ int main(int argc, char* argv[]) {
             auto data = JsonHandler::parse(req.body);
             std::string type = JsonHandler::getString(data, "type");
             
-            if (type == "setActivity" || type == "page" || type == "video" || 
-                type == "music" || type == "chat" || type == "social" || type == "coding") {
-                activityHandler->handleSetActivity(req.body);
-                return HttpResponse(200, R"({"success":true})");
-            } else if (type == "clearActivity") {
+            if (type == "clearActivity") {
                 activityHandler->handleClearActivity();
-                return HttpResponse(200, R"({"success":true})");
             } else {
-                Log::warn("Unknown activity type: " + type);
-                return HttpResponse(400, R"({"error":"Unknown type"})");
+                activityHandler->handleSetActivity(req.body);
             }
+            return HttpResponse(200, R"({"success":true})");
         } catch (const std::exception& e) {
             Log::err(std::string("Request error: ") + e.what());
             return HttpResponse(500, std::string(R"({"error":")") + e.what() + R"("})");
