@@ -299,6 +299,13 @@ int main(int argc, char* argv[]) {
         }
     });
     
+    server.setWebSocketConnectHandler([extensionConnected]() {
+        if (!extensionConnected->load()) {
+            extensionConnected->store(true);
+            Log::ok("Extension connected via WebSocket!");
+        }
+    });
+
     server.setWebSocketHandler([activityHandler, extensionConnected](const std::string& msg) {
         if (!extensionConnected->load()) {
             extensionConnected->store(true);

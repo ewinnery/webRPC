@@ -262,6 +262,9 @@ void HttpServer::handleWebSocket(SOCKET clientSocket, const std::string& headers
     send(clientSocket, resp.c_str(), (int)resp.size(), 0);
     
     Log::ok("WebSocket client connected");
+    if (wsConnectHandler_) {
+        wsConnectHandler_();
+    }
     
     {
         std::lock_guard<std::mutex> lock(wsMutex_);

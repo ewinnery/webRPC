@@ -94,8 +94,13 @@ function connectWS() {
     ws.onopen = () => {
       clientConnected = true;
       console.log('[WebRPC] Connected via WebSocket on port', clientPort);
-      lastSentJson = '';
-      if (currentActivity) sendToClient(currentActivity);
+      lastDeliveredJson = '';
+      sendToClient({ type: 'ping' });
+      chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
+        if (tabs[0]?.url && !tabs[0].url.startsWith('chrome://')) {
+          requestActivity(tabs[0].id, tabs[0]);
+        }
+      });
     };
     ws.onclose = () => {
       clientConnected = false;

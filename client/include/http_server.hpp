@@ -39,6 +39,7 @@ class HttpServer {
 public:
     using RequestHandler = std::function<HttpResponse(const HttpRequest&)>;
     using WsHandler = std::function<void(const std::string&)>;
+    using WsConnectHandler = std::function<void()>;
     
     HttpServer(int port = 8765);
     ~HttpServer();
@@ -47,6 +48,7 @@ public:
     void stop();
     void setRequestHandler(const std::string& path, RequestHandler handler);
     void setWebSocketHandler(WsHandler handler);
+    void setWebSocketConnectHandler(WsConnectHandler handler) { wsConnectHandler_ = handler; }
     void broadcastWS(const std::string& message);
     
     bool isRunning() const { return running_; }
@@ -66,6 +68,7 @@ private:
     
     std::unordered_map<std::string, RequestHandler> handlers_;
     WsHandler wsHandler_;
+    WsConnectHandler wsConnectHandler_;
     
     std::mutex wsMutex_;
     std::vector<SOCKET> wsClients_;
