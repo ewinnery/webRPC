@@ -278,10 +278,10 @@ int main(int argc, char* argv[]) {
         
         if (!extensionConnected->load()) {
             extensionConnected->store(true);
-            Log::ok("Extension connected!");
+            Log::ok("Extension connected via HTTP!");
         }
         
-        Log::debug("Body: " + (req.body.size() > 200 ? req.body.substr(0, 200) + "..." : req.body));
+        Log::info("HTTP payload: " + (req.body.size() > 120 ? req.body.substr(0, 120) + "..." : req.body));
         
         try {
             auto data = JsonHandler::parse(req.body);
@@ -314,7 +314,7 @@ int main(int argc, char* argv[]) {
             extensionConnected->store(true);
             Log::ok("Extension connected via WebSocket!");
         }
-        Log::debug("WS: " + (msg.size() > 200 ? msg.substr(0, 200) + "..." : msg));
+        Log::info("WS payload: " + (msg.size() > 120 ? msg.substr(0, 120) + "..." : msg));
         try {
             auto data = JsonHandler::parse(msg);
             std::string type = JsonHandler::getString(data, "type");

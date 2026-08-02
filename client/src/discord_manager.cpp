@@ -113,15 +113,19 @@ void DiscordManager::setActivity(const ActivityData& activity) {
     
     std::string smallAssetKey = activity.smallImage;
     if (smallAssetKey.empty()) {
-        if (activity.type == "video" || activity.type == "music") {
-            smallAssetKey = "icon_play";
+        if (activity.type == "page" || activity.type == "coding") {
+            smallAssetKey = "icon_globe";
+        } else if (activity.type == "video") {
+            smallAssetKey = "icon_video";
+        } else if (activity.type == "music") {
+            smallAssetKey = "icon_sound";
         } else {
             smallAssetKey = "webrpc";
         }
     }
     
     presence.setSmallImageKey(smallAssetKey);
-    presence.setSmallImageText(activity.smallText.empty() ? "WebRPC" : activity.smallText);
+    presence.setSmallImageText(activity.smallText.empty() ? "Browsing" : activity.smallText);
     
     if (!activity.button1Label.empty() && !activity.button1Url.empty() && activity.button1Url.find("http") == 0) {
         presence.setButton1(activity.button1Label, activity.button1Url, true);

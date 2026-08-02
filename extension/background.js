@@ -255,8 +255,9 @@ function applyIconPrefix(key) {
 }
 
 function sendToClient(msg) {
+  if (!msg) return;
   const json = JSON.stringify(msg);
-  if (json === lastSentJson && clientConnected) return;
+  console.log('[WebRPC Dispatching]', msg);
 
   if (ws && ws.readyState === WebSocket.OPEN) {
     try {
