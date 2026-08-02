@@ -3,8 +3,8 @@ let currentTitle = document.title;
 let sendTimer = null;
 let lastVideoState = null;
 
-const DEBOUNCE_PAGE = 2000;
-const DEBOUNCE_VIDEO = 800;
+const DEBOUNCE_PAGE = 150;
+const DEBOUNCE_VIDEO = 100;
 
 function isExtensionValid() {
   try { return chrome.runtime && chrome.runtime.id && extensionValid; }

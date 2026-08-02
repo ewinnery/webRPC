@@ -250,6 +250,20 @@ function sanitizeImage(url, domain) {
   return url;
 }
 
+function cleanStateDomain(st) {
+  if (!st) return null;
+  let str = String(st).trim();
+  if (str.startsWith('http://') || str.startsWith('https://')) {
+    try {
+      const u = new URL(str);
+      return u.hostname.replace(/^www\./, '');
+    } catch {
+      return str;
+    }
+  }
+  return str.replace(/^www\./, '');
+}
+
 function processActivity(activity, tab) {
   let domain = '';
   try { domain = new URL(activity.url).hostname; } catch {}
@@ -267,7 +281,7 @@ function processActivity(activity, tab) {
     type: activity.type || 'page',
     title: settings.showPageTitle ? (activity.title || 'Browsing') : 'Browsing',
     details: settings.showDetailedInfo ? (activity.details || null) : null,
-    state: settings.showDetailedInfo ? (activity.state || null) : null,
+    state: settings.showDetailedInfo ? cleanStateDomain(activity.state) : null,
     largeImage: largeImage,
     smallImage: applyIconPrefix(activity.smallImage) || null,
     largeText: settings.showPageTitle ? (activity.largeText || null) : null,
