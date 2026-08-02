@@ -985,6 +985,10 @@ function sendActivity() {
   sendTimer = setTimeout(doSend, hasVideo ? DEBOUNCE_VIDEO : DEBOUNCE_PAGE);
 }
 
+function checkAndSendActivity() {
+  sendActivity();
+}
+
 function doSend() {
   if (!isExtensionValid()) return;
   try {
