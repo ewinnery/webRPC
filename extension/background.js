@@ -3,6 +3,7 @@ let clientPort = 8765;
 let ws = null;
 let currentActivity = null;
 let lastSentJson = '';
+let updateTimer = null;
 
 const DEFAULT_SETTINGS = {
   showDetailedInfo: true,
