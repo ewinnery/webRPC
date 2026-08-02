@@ -397,8 +397,6 @@ extractFavicon().then(result => {
     cachedFaviconUrl = result.url;
     sendActivity();
   }
-});
-
 function isAdPlaying() {
   if (document.querySelector('.ad-showing, .ad-interrupting, .video-ads .ad-preview, .ytp-ad-text, .ytp-ad-preview-text, [class*="ad-showing"]')) {
     return true;
@@ -410,49 +408,61 @@ function findActiveVideo() {
   if (isAdPlaying()) return null;
 
   let best = null, bestScore = 0;
-  for (const v of document.querySelectorAll('video')) {
-    if (v.readyState < 1) continue;
+  const videos = Array.from(document.querySelectorAll('video, audio'));
 
-    const isAd = v.closest('[class*="ad-player"], [class*="video-ads"], [class*="preroll"], [id*="ad-"]');
+  for (const v of videos) {
+    const isAd = v.closest('[class*="ad-player"], [class*="video-ads"], [class*="preroll"], [id*="ad-"], [class*="advert"]');
     if (isAd) continue;
 
-    const w = v.videoWidth || v.clientWidth || v.offsetWidth || 0;
-    const h = v.videoHeight || v.clientHeight || v.offsetHeight || 0;
-    if (w < 120 || h < 120) continue;
-
-    const playing = !v.paused && !v.ended && v.currentTime > 0;
+    const playing = !v.paused && !v.ended && (v.currentTime > 0 || v.readyState >= 1);
     const dur = v.duration;
-    const hasDur = !isNaN(dur) && dur > 3;
+    const hasDur = !isNaN(dur) && dur > 2;
+
     if (!playing && !hasDur) continue;
 
+    const w = v.videoWidth || v.clientWidth || v.offsetWidth || 300;
+    const h = v.videoHeight || v.clientHeight || v.offsetHeight || 150;
+
     let score = w * h;
-    if (playing) score += 1000000;
-    if (score > bestScore) { best = v; bestScore = score; }
+    if (playing) score += 10000000;
+    if (hasDur) score += 500000;
+
+    if (score > bestScore) {
+      best = v;
+      bestScore = score;
+    }
   }
   return best;
 }
 
 function getVideoContext(video) {
   let title = null, author = null;
-  const container = video.closest(
-    '[class*="player"], [class*="video"], [class*="media"], article, section, main, [role="main"]'
+
+  const mainTitleEl = document.querySelector(
+    'h1, .entry-title, .post-title, .film-title, .b-post__title, .movie-title, .show-title, .page-title, [class*="title"]:not(link):not(meta)'
   );
-  if (container) {
-    const titleEl = container.querySelector(
-      'h1, h2, .title, .video-title, [class*="title"]:not(link):not(meta)'
+  if (mainTitleEl && mainTitleEl.textContent.trim()) {
+    const t = mainTitleEl.textContent.trim();
+    if (t.length > 2 && t.length < 250) title = t;
+  }
+
+  if (!title && video) {
+    const container = video.closest(
+      '[class*="player"], [class*="video"], [class*="media"], [class*="wrapper"], article, section, main, [role="main"]'
     );
-    if (titleEl) {
-      const t = titleEl.textContent.trim();
-      if (t.length > 2 && t.length < 300) title = t;
-    }
-    const authorEl = container.querySelector(
-      '.author, .channel, .uploader, [class*="author"], [class*="channel"], [class*="uploader"]'
-    );
-    if (authorEl) {
-      const a = authorEl.textContent.trim();
-      if (a.length > 1 && a.length < 100) author = a;
+    if (container) {
+      const titleEl = container.querySelector('h1, h2, h3, .title, [class*="title"]:not(link):not(meta)');
+      if (titleEl && titleEl.textContent.trim()) {
+        const t = titleEl.textContent.trim();
+        if (t.length > 2 && t.length < 250) title = t;
+      }
     }
   }
+
+  if (!title) {
+    title = document.title.replace(/^\(\d+\)\s*/, '').replace(/ - [^-]+$/, '').trim();
+  }
+
   return { title, author };
 }
 
@@ -463,18 +473,24 @@ function buildVideoActivity(video, url, favicon, extraTitle, extraAuthor, extraC
   const hasDur = !isNaN(dur) && dur > 1;
 
   const ctx = getVideoContext(video);
-  const videoTitle = extraTitle || ctx.title || null;
-  const author = extraAuthor || ctx.author || null;
+  const videoTitle = extraTitle || ctx.title || document.title || 'Watching video';
+  const author = extraAuthor || ctx.author || extractDomain(url);
   const platform = platformName(url);
+
+  let poster = video.poster;
+  if (poster && (poster.startsWith('data:image/gif') || poster.startsWith('data:image/svg'))) {
+    poster = null;
+  }
+  const largeImg = poster || favicon || getFavicon();
 
   const result = {
     type: 'video',
     title: platform,
     url: url,
     favicon: favicon,
-    details: videoTitle ? (playing ? videoTitle : `${videoTitle} (Paused)`) : (playing ? 'Viewing video' : 'Video paused'),
+    details: videoTitle ? (playing ? videoTitle : `${videoTitle} (Paused)`) : (playing ? 'Watching video' : 'Video paused'),
     state: author || extractDomain(url),
-    largeImage: favicon,
+    largeImage: largeImg,
     largeText: videoTitle || platform,
     smallImage: playing ? 'icon_play' : 'icon_pause',
     smallText: playing ? 'Playing' : 'Paused',
