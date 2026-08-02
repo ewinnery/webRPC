@@ -58,6 +58,24 @@ let currentFocusedActiveTabId = null;
 function handleTabActivityUpdate(tabId, rawActivity, tab) {
   if (!rawActivity) return;
 
+  if (rawActivity.isIframe && tab) {
+    if (tab.url && !tab.url.startsWith('chrome')) {
+      rawActivity.url = tab.url;
+      try { rawActivity.state = new URL(tab.url).hostname.replace(/^www\./, ''); } catch {}
+    }
+    if (tab.title && (!rawActivity.details || rawActivity.details === 'Watching video' || rawActivity.details.includes('Player'))) {
+      const cleanTitle = tab.title
+        .replace(/^\(\d+\)\s*/, '')
+        .replace(/\s*[-–|]\s*(Lordfilm|Лордфильм|Кинопоиск|HDRezka|Filmix|Kodik|Rutube|VK|YouTube|Vimeo|Dailymotion|Netflix|Twitch).*$/i, '')
+        .replace(/\s*смотр(еть|ите)\s+онлайн.*$/i, '')
+        .trim();
+      if (cleanTitle) {
+        rawActivity.details = rawActivity.isPlaying ? cleanTitle : `${cleanTitle} (Paused)`;
+        rawActivity.largeText = cleanTitle;
+      }
+    }
+  }
+
   const isMedia = rawActivity.type === 'video' || rawActivity.type === 'music';
   const isPlaying = rawActivity.isPlaying === true || (isMedia && rawActivity.smallImage && rawActivity.smallImage.includes('play'));
 

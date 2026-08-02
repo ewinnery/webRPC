@@ -1004,9 +1004,13 @@ function detectActivity() {
   const video = findActiveVideo();
   if (video) {
     const playing = !video.paused && !video.ended && video.currentTime > 0;
-    const hasDur = !isNaN(video.duration) && video.duration > 5;
+    const hasDur = !isNaN(video.duration) && video.duration > 3;
     if (playing || hasDur) {
-      return buildVideoActivity(video, url, getFavicon(), null, null, null);
+      const act = buildVideoActivity(video, url, getFavicon(), null, null, null);
+      if (window.self !== window.top) {
+        act.isIframe = true;
+      }
+      return act;
     }
   }
 
