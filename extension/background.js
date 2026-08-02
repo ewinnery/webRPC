@@ -155,9 +155,8 @@ setInterval(() => {
 }, 5000);
 
 function handleActivityUpdate(activity, tab) {
-  if (!tab) return;
-  if (tab.active !== undefined && !tab.active) return;
-  if (settings.hiddenPages.some(p => activity.url.includes(p))) {
+  if (!activity) return;
+  if (settings.hiddenPages.some(p => activity.url && activity.url.includes(p))) {
     sendToClient({ type: 'clearActivity' });
     return;
   }
