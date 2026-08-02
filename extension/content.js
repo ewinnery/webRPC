@@ -502,8 +502,11 @@ function detectYouTube(url) {
 
   if (hostname === 'music.youtube.com') return detectYouTubeMusic(url);
 
-  if (!url.includes('/watch') && !url.includes('/shorts/') && !url.includes('/live')) {
-    
+  const isShorts = url.includes('/shorts/');
+  const isLive = url.includes('/live') || !!document.querySelector('.ytp-live-badge-text, .ytp-live');
+  const isWatch = url.includes('/watch') || isShorts || isLive;
+
+  if (!isWatch) {
     const miniplayer = document.querySelector('ytd-miniplayer video, .miniplayer video');
     if (miniplayer && !miniplayer.paused && miniplayer.currentTime > 0) {
       const miniTitle = document.querySelector('ytd-miniplayer .title, .miniplayer .title');
@@ -512,11 +515,17 @@ function detectYouTube(url) {
         miniTitle ? miniTitle.textContent.trim() : null, null, null
       );
     }
-    return null; 
+    const pn = 'YouTube';
+    const rawTitle = document.title.replace(/ - YouTube$/, '').trim() || 'Browsing YouTube';
+    return {
+      type: 'page', title: pn, url, favicon: getIcon('youtube.com'),
+      details: rawTitle, state: 'youtube.com',
+      largeImage: getIcon('youtube.com'), largeText: rawTitle,
+      smallImage: 'icon_globe', smallText: pn,
+      videoUrl: null, channelUrl: null, timestamps: null,
+    };
   }
 
-  const isShorts = url.includes('/shorts/');
-  const isLive = url.includes('/live') || !!document.querySelector('.ytp-live-badge-text, .ytp-live');
   let videoId;
   if (isShorts) {
     videoId = url.match(/shorts\/([a-zA-Z0-9_-]+)/)?.[1];
@@ -525,7 +534,6 @@ function detectYouTube(url) {
   }
 
   const video = document.querySelector('#movie_player video, ytd-player video, video');
-  if (!video || video.readyState < 1) return null;
 
   let channel = null, channelUrl = null;
   const chEl = document.querySelector(
@@ -536,16 +544,33 @@ function detectYouTube(url) {
     if (chEl.href) channelUrl = chEl.href;
   }
 
-  const rawTitle = document.title.replace(/ - YouTube$/, '').trim();
+  const rawTitle = document.title.replace(/ - YouTube$/, '').trim() || 'Watching YouTube';
   const favicon = getIcon('youtube.com');
   const thumb = videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : favicon;
 
-  const activity = buildVideoActivity(video, url, thumb, rawTitle, channel, channelUrl);
-  activity.title = isLive ? 'YouTube Live' : isShorts ? 'YouTube Shorts' : 'YouTube';
-  activity.largeImage = thumb;
-  activity.videoUrl = videoId ? `https://youtube.com/watch?v=${videoId}` : url;
-
-  return activity;
+  if (video) {
+    const activity = buildVideoActivity(video, url, thumb, rawTitle, channel, channelUrl);
+    activity.title = isLive ? 'YouTube Live' : isShorts ? 'YouTube Shorts' : 'YouTube';
+    activity.largeImage = thumb;
+    activity.videoUrl = videoId ? `https://youtube.com/watch?v=${videoId}` : url;
+    return activity;
+  } else {
+    return {
+      type: 'video',
+      title: isLive ? 'YouTube Live' : isShorts ? 'YouTube Shorts' : 'YouTube',
+      url: url,
+      favicon: favicon,
+      details: rawTitle,
+      state: channel || 'YouTube',
+      largeImage: thumb,
+      largeText: rawTitle,
+      smallImage: 'icon_play',
+      smallText: 'YouTube',
+      videoUrl: videoId ? `https://youtube.com/watch?v=${videoId}` : url,
+      channelUrl: channelUrl,
+      timestamps: null,
+    };
+  }
 }
 
 function detectYouTubeMusic(url) {
@@ -1011,7 +1036,11 @@ new MutationObserver(attachVideoListeners).observe(
   document.body || document.documentElement, { subtree: true, childList: true }
 );
 
+window.addEventListener('yt-navigate-finish', () => { doSend(); });
+window.addEventListener('yt-page-data-updated', () => { doSend(); });
+window.addEventListener('spfdone', () => { doSend(); });
+
 setInterval(() => {
   if (!isExtensionValid()) return;
   doSend();
-}, findActiveVideo() ? 5000 : 30000);
+}, 5000);

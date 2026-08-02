@@ -131,15 +131,14 @@ setInterval(() => {
 let updateTimer = null;
 
 function handleActivityUpdate(activity, tab) {
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (!tabs[0] || tabs[0].id !== tab.id) return;
-    if (settings.hiddenPages.some(p => activity.url.includes(p))) {
-      sendToClient({ type: 'clearActivity' });
-      return;
-    }
-    if (updateTimer) clearTimeout(updateTimer);
-    updateTimer = setTimeout(() => processActivity(activity, tabs[0]), 300);
-  });
+  if (!tab) return;
+  if (tab.active !== undefined && !tab.active) return;
+  if (settings.hiddenPages.some(p => activity.url.includes(p))) {
+    sendToClient({ type: 'clearActivity' });
+    return;
+  }
+  if (updateTimer) clearTimeout(updateTimer);
+  updateTimer = setTimeout(() => processActivity(activity, tab), 100);
 }
 
 function isLocal(d) {
@@ -270,9 +269,7 @@ function requestActivity(tabId, tab) {
 chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
   if (info.status !== 'complete') return;
   if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) return;
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (tabs[0]?.id === tabId) requestActivity(tabId, tab);
-  });
+  if (tab.active) requestActivity(tabId, tab);
 });
 
 chrome.tabs.onActivated.addListener((info) => {
