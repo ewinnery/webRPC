@@ -344,7 +344,7 @@ async function checkExtensionUpdates() {
     
     const manifestVer = chrome.runtime.getManifest().version;
     const currentVer = manifestVer;
-    const remoteVer = data.extension_version || data.version || "1.0.1";
+    const remoteVer = data.extension_version || data.version || "1.0.2";
     
     if (remoteVer && isNewerVersion(remoteVer, currentVer)) {
       console.log(`[WebRPC Update] New version available: ${remoteVer} (current: ${currentVer})`);
@@ -353,9 +353,9 @@ async function checkExtensionUpdates() {
         updateAvailable: true,
         remoteVersion: remoteVer,
         currentVersion: currentVer,
-        downloadUrl: data.download_url || 'https://github.com/ewinnery/webRPC/releases/tag/v2',
-        exeUrl: data.exe_download_url || 'https://github.com/ewinnery/webRPC/releases/download/v2/webRPC.exe',
-        crxUrl: data.crx_download_url || 'https://github.com/ewinnery/webRPC/releases/download/v2/extension.crx'
+        downloadUrl: data.download_url || 'https://github.com/ewinnery/webRPC/releases/tag/v3',
+        exeUrl: data.exe_download_url || 'https://github.com/ewinnery/webRPC/releases/download/v3/webRPC.exe',
+        crxUrl: data.crx_download_url || 'https://github.com/ewinnery/webRPC/releases/download/v3/extension.crx'
       });
 
       chrome.action.setBadgeText({ text: 'NEW' });

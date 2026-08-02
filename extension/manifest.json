@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "WebRPC - Discord Rich Presence for Browser",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Powerful web bridge to Discord RPC Client - show your browser activity in Discord",
   "permissions": [
     "tabs",

@@ -1,11 +1,11 @@
 {
-  "version": "1.0.1",
-  "client_version": "1.0.1",
-  "extension_version": "1.0.1",
-  "name": "WebRPC v1.0.1 (Release v2)",
-  "tag": "v2",
-  "download_url": "https://github.com/ewinnery/webRPC/releases/tag/v2",
-  "exe_download_url": "https://github.com/ewinnery/webRPC/releases/download/v2/webRPC.exe",
-  "crx_download_url": "https://github.com/ewinnery/webRPC/releases/download/v2/extension.crx",
-  "changelog": "Release v2: Automatic update checker, direct download links, IconHorse PNG integration."
+  "version": "1.0.2",
+  "client_version": "1.0.2",
+  "extension_version": "1.0.2",
+  "name": "WebRPC v1.0.2 (Release v3)",
+  "tag": "v3",
+  "download_url": "https://github.com/ewinnery/webRPC/releases/tag/v3",
+  "exe_download_url": "https://github.com/ewinnery/webRPC/releases/download/v3/webRPC.exe",
+  "crx_download_url": "https://github.com/ewinnery/webRPC/releases/download/v3/extension.crx",
+  "changelog": "Release v3: Fixed YouTube video activity detection, HD thumbnails, channel extraction, active tab filtering, theme icon prefix synchronization, and console TUI update progress bar."
 }
