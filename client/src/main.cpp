@@ -287,6 +287,9 @@ int main(int argc, char* argv[]) {
             auto data = JsonHandler::parse(req.body);
             std::string type = JsonHandler::getString(data, "type");
             
+            if (type == "ping") {
+                return HttpResponse(200, R"({"pong":true})");
+            }
             if (type == "clearActivity") {
                 activityHandler->handleClearActivity();
             } else {
@@ -315,6 +318,7 @@ int main(int argc, char* argv[]) {
         try {
             auto data = JsonHandler::parse(msg);
             std::string type = JsonHandler::getString(data, "type");
+            if (type == "ping") return;
             if (type == "clearActivity") {
                 activityHandler->handleClearActivity();
             } else {

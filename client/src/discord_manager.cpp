@@ -68,8 +68,17 @@ void DiscordManager::setActivity(const ActivityData& activity) {
     auto& presence = discord::RPCManager::get().getPresence();
     presence.clear();
     
-    presence.setDetails(activity.details);
-    presence.setState(activity.state);
+    std::string details = activity.details;
+    if (details.empty()) {
+        details = activity.title.empty() ? "Browsing Web" : activity.title;
+    }
+    std::string state = activity.state;
+    if (state.empty() && !activity.url.empty()) {
+        state = activity.url;
+    }
+    
+    presence.setDetails(details);
+    presence.setState(state);
     
     if (activity.startTimestamp > 0) {
         presence.setStartTimestamp(activity.startTimestamp);
@@ -102,19 +111,17 @@ void DiscordManager::setActivity(const ActivityData& activity) {
     presence.setLargeImageKey(largeKey);
     presence.setLargeImageText(activity.largeText.empty() ? "WebRPC" : activity.largeText);
     
-    std::string smallAssetKey;
-    if (activity.type == "page" || activity.type == "coding") {
-        smallAssetKey = "icon_globe";
-    } else if (activity.type == "video") {
-        smallAssetKey = "icon_video";
-    } else if (activity.type == "music") {
-        smallAssetKey = "icon_sound";
-    } else {
-        smallAssetKey = "webrpc"; 
+    std::string smallAssetKey = activity.smallImage;
+    if (smallAssetKey.empty()) {
+        if (activity.type == "video" || activity.type == "music") {
+            smallAssetKey = "icon_play";
+        } else {
+            smallAssetKey = "webrpc";
+        }
     }
     
     presence.setSmallImageKey(smallAssetKey);
-    presence.setSmallImageText(activity.smallText.empty() ? "Browsing" : activity.smallText);
+    presence.setSmallImageText(activity.smallText.empty() ? "WebRPC" : activity.smallText);
     
     if (!activity.button1Label.empty() && !activity.button1Url.empty() && activity.button1Url.find("http") == 0) {
         presence.setButton1(activity.button1Label, activity.button1Url, true);
