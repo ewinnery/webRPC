@@ -395,7 +395,7 @@ function getFavicon() {
 extractFavicon().then(result => {
   if (result?.url) {
     cachedFaviconUrl = result.url;
-    checkAndSendActivity();
+    sendActivity();
   }
 });
 
