@@ -235,17 +235,21 @@ function setupEvents() {
 }
 
 function loadActivity() {
-  chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
-    if (!tabs[0]) return;
-    chrome.tabs.sendMessage(tabs[0].id, { action: 'getActivity' }, (r) => {
-      if (chrome.runtime.lastError || !r?.activity) {
-        const fallback = { type: 'page', title: tabs[0].title || 'Browsing', details: tabs[0].title || 'Browsing', state: tabs[0].url || '', url: tabs[0].url, largeImage: tabs[0].favIconUrl || '' };
-        displayActivity(fallback);
-        chrome.runtime.sendMessage({ action: 'updateActivity', data: fallback });
-        return;
-      }
+  chrome.runtime.sendMessage({ action: 'getCurrentActivity' }, (r) => {
+    if (!chrome.runtime.lastError && r?.activity) {
       displayActivity(r.activity);
-      chrome.runtime.sendMessage({ action: 'updateActivity', data: r.activity });
+      return;
+    }
+    chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
+      if (!tabs[0]) return;
+      chrome.tabs.sendMessage(tabs[0].id, { action: 'getActivity' }, (res) => {
+        if (!chrome.runtime.lastError && res?.activity) {
+          displayActivity(res.activity);
+        } else {
+          const fallback = { type: 'page', title: tabs[0].title || 'Browsing', details: tabs[0].title || 'Browsing', state: tabs[0].url || '', url: tabs[0].url, largeImage: tabs[0].favIconUrl || '' };
+          displayActivity(fallback);
+        }
+      });
     });
   });
 }

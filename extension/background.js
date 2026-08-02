@@ -113,6 +113,9 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
       }
       sendResponse({ success: true });
       break;
+    case 'getCurrentActivity':
+      sendResponse({ activity: currentActivity });
+      break;
     case 'getSettings':
       sendResponse({ settings, clientPort });
       break;
