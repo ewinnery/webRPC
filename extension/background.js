@@ -79,56 +79,75 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
 let wsReconnectTimer = null;
 
 function connectWS() {
-  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
-    ws.close();
+  if (ws) {
+    if (ws.readyState === WebSocket.OPEN) {
+      clientConnected = true;
+      return;
+    }
+    if (ws.readyState === WebSocket.CONNECTING) {
+      return;
+    }
   }
+
   try {
     ws = new WebSocket(`ws://127.0.0.1:${clientPort}/ws`);
     ws.onopen = () => {
       clientConnected = true;
-      console.log('WebRPC: WS connected to port', clientPort);
-      if (currentActivity) { lastSentJson = ''; sendToClient(currentActivity); }
+      console.log('[WebRPC] Connected via WebSocket on port', clientPort);
+      lastSentJson = '';
+      if (currentActivity) sendToClient(currentActivity);
     };
     ws.onclose = () => {
       clientConnected = false;
+      ws = null;
       scheduleReconnect();
     };
     ws.onerror = () => {
       clientConnected = false;
-      
+      ws = null;
       connectHTTP();
     };
     ws.onmessage = (e) => {
-      
       try {
         const msg = JSON.parse(e.data);
-        if (msg.type === 'portChanged') {
+        if (msg.type === 'portChanged' && msg.port) {
           clientPort = msg.port;
           saveSettings();
         }
       } catch {}
     };
   } catch {
+    ws = null;
     connectHTTP();
   }
 }
 
 function scheduleReconnect() {
   if (wsReconnectTimer) clearTimeout(wsReconnectTimer);
-  wsReconnectTimer = setTimeout(() => connectWS(), 5000);
+  wsReconnectTimer = setTimeout(() => connectWS(), 3000);
 }
 
 function connectHTTP() {
-  fetch(`http://127.0.0.1:${clientPort}/health`)
-    .then(r => { if (r.ok) { clientConnected = true; } })
-    .catch(() => { clientConnected = false; });
+  fetch(`http://127.0.0.1:${clientPort}/health`, { cache: 'no-store' })
+    .then(r => {
+      if (r.ok) {
+        clientConnected = true;
+        if (currentActivity) {
+          lastSentJson = '';
+          sendToClient(currentActivity);
+        }
+      }
+    })
+    .catch(() => {
+      clientConnected = false;
+    });
 }
 
 setInterval(() => {
-  if (!clientConnected) connectWS();
-}, 15000);
-
-let updateTimer = null;
+  if (!clientConnected || !ws || ws.readyState !== WebSocket.OPEN) {
+    connectWS();
+  }
+}, 5000);
 
 function handleActivityUpdate(activity, tab) {
   if (!tab) return;
@@ -233,20 +252,35 @@ function applyIconPrefix(key) {
 
 function sendToClient(msg) {
   const json = JSON.stringify(msg);
-  if (json === lastSentJson) return;
-  lastSentJson = json;
+  if (json === lastSentJson && clientConnected) return;
 
   if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(json);
-    return;
+    try {
+      ws.send(json);
+      lastSentJson = json;
+      clientConnected = true;
+      return;
+    } catch (e) {
+      ws = null;
+      clientConnected = false;
+    }
   }
 
-  if (!clientConnected) return;
   fetch(`http://127.0.0.1:${clientPort}/webrpc`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: json,
-  }).catch(() => { clientConnected = false; });
+  })
+    .then(r => {
+      if (r.ok) {
+        clientConnected = true;
+        lastSentJson = json;
+      }
+    })
+    .catch(() => {
+      clientConnected = false;
+      connectWS();
+    });
 }
 
 function requestActivity(tabId, tab) {
